@@ -1,4 +1,3 @@
-// medias.go
 package main
 
 import (
@@ -17,209 +16,202 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
-const maxConcurrentJobs = 2 // 👈 À adapter selon tes besoins
-var jobSlots = make(chan struct{}, maxConcurrentJobs)
+const maxParallelJobs = 3                               // Max de jobs exécutés simultanément
+var jobSemaphore = make(chan struct{}, maxParallelJobs) // Sémaphore de contrôle de concurrence
 
-func onJobCreate(app core.App, job *core.Record) {
+// handleJobExecution exécute un job en backend (appelé à la création du record)
+func handleJobExecution(app *pocketbase.PocketBase, job *core.Record) {
 	logger := app.Logger()
-	id := job.Id
+	jobID := job.Id
 	action := job.GetString("action")
 	input := job.GetString("input")
 
-	// 🔒 Limite le nombre de jobs parallèles
-	logger.Info("⏳ waiting for available job slot", "id", id)
-	jobSlots <- struct{}{}        // 👈 bloque si tous les slots sont pris
-	defer func() { <-jobSlots }() // 👈 libère le slot à la fin
-	logger.Info("🚀 acquired job slot", "id", id)
+	// 🔒 Contrôle de concurrence : limite le nombre de jobs actifs
+	logger.Info("⏳ waiting for available job slot", "id", jobID)
+	jobSemaphore <- struct{}{}
+	defer func() { <-jobSemaphore }()
+	logger.Info("🚀 acquired job slot", "id", jobID)
 
+	// 🔐 Mutex pour les accès concurrents à l'objet job
 	var mu sync.Mutex
 
-	save := func() {
+	// Sauvegarde sécurisée du record avec timestamp
+	saveJob := func() {
 		mu.Lock()
 		defer mu.Unlock()
 
-		job.Set("updated", time.Now().Format(time.RFC3339))
-
-		if err := app.SaveNoValidate(job); err != nil {
-			logger.Error("❌ job save failed", "id", id, "err", err)
+		if err := app.Save(job); err != nil {
+			logger.Error("❌ job save failed", "id", jobID, "err", err)
 		}
 	}
 
-	var logs string
-	addLog := func(level, line string) {
+	// Gestion des logs texte du job (avec timestamp)
+	var fullLogs string
+	logJob := func(level, message string) {
 		timestamp := time.Now().Format("[2006-01-02 15:04:05]")
+		logLine := fmt.Sprintf("%s %s %s\n", timestamp, level, message)
 
-		logger.Info("▶️ job log", "id", id, "level", level, "line", line)
+		logger.Info("📄 job log", "id", jobID, "level", level, "line", message)
 
 		mu.Lock()
-		logs = logs + fmt.Sprintf("%s %s %s\n", timestamp, level, line)
-		job.Set("logs", logs)
+		fullLogs += logLine
+		job.Set("logs", fullLogs)
 		mu.Unlock()
 
-		save()
+		saveJob()
 	}
 
-	logger.Info("▶️ job started", "id", id, "action", action, "input", input)
+	// Initialisation du job
+	logger.Info("▶️ job started", "id", jobID, "action", action, "input", input)
 	job.Set("status", "processing")
 	job.Set("progress", 1)
-	save()
+	saveJob()
 
-	// Timer déclenché si le progrès ne change pas pendant 10s
-	progressUpdated := make(chan struct{}, 1)
-	done := make(chan struct{}, 1)
-	timeoutDuration := 10 * time.Second
+	// Mise en place du watchdog (timeout 10s si aucun progrès)
+	progressSignal := make(chan struct{}, 1)
+	jobDone := make(chan struct{}, 1)
+	timeout := 10 * time.Second
 
-	cmd := exec.Command("deno", "run", "--allow-all", "jobs/"+action+".ts", job.Id, input)
+	cmd := exec.Command("deno", "run", "--allow-all", "jobs/"+action+".ts", jobID, input)
 
+	// Goroutine de surveillance du progrès
 	go func() {
-		timer := time.NewTimer(timeoutDuration)
+		timer := time.NewTimer(timeout)
 		defer timer.Stop()
 		for {
 			select {
-			case <-done:
-				return // ✅ arrêt explicite de la goroutine si job fini ou échoué
-			case <-progressUpdated:
+			case <-jobDone:
+				return
+			case <-progressSignal:
 				if !timer.Stop() {
 					<-timer.C
 				}
-				timer.Reset(timeoutDuration)
+				timer.Reset(timeout)
 			case <-timer.C:
-				addLog("ERROR", "timeout: no progress update")
+				logJob("ERROR", "Timeout: no progress update within 10s")
 				job.Set("status", "failed")
-				job.Set("error", "no progress update for 10s")
-				save()
-				cmd.Process.Kill()
+				job.Set("error", "No progress update within timeout")
+				saveJob()
+				_ = cmd.Process.Kill()
 				return
 			}
 		}
 	}()
 
-	stdoutPipe, err := cmd.StdoutPipe()
+	// Préparation des pipes stdout / stderr
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		logger.Error("❌ stdout pipe error", "err", err)
+		logger.Error("❌ failed to get stdout", "id", jobID, "err", err)
 		job.Set("status", "failed")
 		job.Set("error", "stdout pipe error")
-		save()
-		close(done)
+		saveJob()
+		close(jobDone)
 		return
 	}
 
-	stderrPipe, err := cmd.StderrPipe()
+	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		logger.Error("❌ stderr pipe error", "err", err)
+		logger.Error("❌ failed to get stderr", "id", jobID, "err", err)
 		job.Set("status", "failed")
 		job.Set("error", "stderr pipe error")
-		save()
-		close(done)
+		saveJob()
+		close(jobDone)
 		return
 	}
 
 	var wg sync.WaitGroup
-
 	wg.Add(2)
 
-	// stdout goroutine
+	// Traitement de la sortie standard (stdout)
 	go func() {
 		defer wg.Done()
-
-		scanner := bufio.NewScanner(stdoutPipe)
-
+		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			line := scanner.Text()
 
-			if strings.HasPrefix(line, "progress ") {
-				progressString := strings.TrimPrefix(line, "progress ")
-				progressFloat, err := strconv.ParseFloat(progressString, 64)
-				if err == nil {
-					job.Set("progress", int(progressFloat))
-					save()
-
+			switch {
+			case strings.HasPrefix(line, "progress "):
+				progressStr := strings.TrimPrefix(line, "progress ")
+				if progress, err := strconv.ParseFloat(progressStr, 64); err == nil {
+					job.Set("progress", int(progress))
+					saveJob()
 					select {
-					case progressUpdated <- struct{}{}:
+					case progressSignal <- struct{}{}:
 					default:
 					}
-					continue
 				}
+			case strings.HasPrefix(line, "result "):
+				result := strings.TrimPrefix(line, "result ")
+				job.Set("result", result)
+				saveJob()
+			case strings.HasPrefix(line, "error "):
+				errMsg := strings.TrimPrefix(line, "error ")
+				job.Set("error", errMsg)
+				saveJob()
+			default:
+				logJob("INFO", line)
 			}
-
-			if strings.HasPrefix(line, "result ") {
-				resultString := strings.TrimPrefix(line, "result ")
-				job.Set("result", resultString)
-				save()
-				continue
-			}
-
-			if strings.HasPrefix(line, "error ") {
-				errorString := strings.TrimPrefix(line, "error ")
-				job.Set("error", errorString)
-				save()
-				continue
-			}
-
-			addLog("INFO", line)
 		}
-
 		if err := scanner.Err(); err != nil {
-			addLog("ERROR", "stdout scanner error: "+err.Error())
+			logJob("ERROR", "stdout scanner error: "+err.Error())
 		}
 	}()
 
-	// stderr goroutine
+	// Traitement de la sortie d'erreur (stderr)
 	go func() {
 		defer wg.Done()
-
-		scanner := bufio.NewScanner(stderrPipe)
-
+		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
-			line := scanner.Text()
-			addLog("ERROR", line)
+			logJob("ERROR", scanner.Text())
 		}
-
 		if err := scanner.Err(); err != nil {
-			addLog("ERROR", "stderr scanner error: "+err.Error())
+			logJob("ERROR", "stderr scanner error: "+err.Error())
 		}
 	}()
 
+	// Lancement du processus
 	if err := cmd.Start(); err != nil {
-		logger.Error("❌ job start error", "id", id, "err", err)
+		logger.Error("❌ failed to start job", "id", jobID, "err", err)
 		job.Set("status", "failed")
 		job.Set("error", err.Error())
-		save()
-		close(done)
+		saveJob()
+		close(jobDone)
 		return
 	}
 
+	// Attente de la fin du processus
 	if err := cmd.Wait(); err != nil {
-		logger.Error("❌ job wait failed", "id", id, "error", err)
+		logger.Error("❌ job process failed", "id", jobID, "error", err)
 		job.Set("status", "failed")
 		job.Set("error", err.Error())
-		save()
-
+		saveJob()
 		wg.Wait()
-		close(done)
+		close(jobDone)
 		return
 	}
 
-	// Attendre que stdout/stderr se terminent
+	// Attente de fin des goroutines de lecture
 	wg.Wait()
-	close(done)
+	close(jobDone)
 
+	// Petite pause pour capter les logs restants
 	time.Sleep(100 * time.Millisecond)
 
+	// Finalisation
 	job.Set("status", "finished")
 	job.Set("progress", 100)
-	save()
+	saveJob()
 
-	logger.Info("✅ job finished", "id", id)
+	logger.Info("✅ job finished", "id", jobID)
 }
 
+// bindJobs attache le handler sur création de job
 func bindJobs(app *pocketbase.PocketBase) {
 	app.OnRecordAfterCreateSuccess("jobs").BindFunc(func(e *core.RecordEvent) error {
-		job := e.Record.Clone()
-		app := e.App
+		job := e.Record
 
 		go func() {
-			onJobCreate(app, job)
+			handleJobExecution(app, job)
 		}()
 
 		return nil
