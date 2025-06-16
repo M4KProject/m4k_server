@@ -2,7 +2,7 @@ package main
 
 import (
 	"bufio"
-	"fmt"
+	"encoding/json"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
@@ -24,7 +24,6 @@ func handleJobExecution(app *pocketbase.PocketBase, job *core.Record) {
 	logger := app.Logger()
 	jobID := job.Id
 	action := job.GetString("action")
-	input := job.GetString("input")
 
 	// 🔒 Contrôle de concurrence : limite le nombre de jobs actifs
 	logger.Info("⏳ waiting for available job slot", "id", jobID)
@@ -45,24 +44,28 @@ func handleJobExecution(app *pocketbase.PocketBase, job *core.Record) {
 		}
 	}
 
-	// Gestion des logs texte du job (avec timestamp)
-	var fullLogs string
-	logJob := func(level, message string) {
-		timestamp := time.Now().Format("[2006-01-02 15:04:05]")
-		logLine := fmt.Sprintf("%s %s %s\n", timestamp, level, message)
+	// Gestion des logs JSON (slice de chaînes)
+	var logs [][]any
+	logJob := func(level string, args ...any) {
+		timestamp := time.Now().Format(time.RFC3339)
 
-		logger.Info("📄 job log", "id", jobID, "level", level, "line", message)
+		// Construire la ligne de log comme un slice [time, level, ...args]
+		line := make([]any, 0, 2+len(args))
+		line = append(line, timestamp, level)
+		line = append(line, args...)
+
+		logger.Info("📄 job log", "id", jobID, "level", level, "line", line)
 
 		mu.Lock()
-		fullLogs += logLine
-		job.Set("logs", fullLogs)
+		logs = append(logs, line)
+		job.Set("logs", logs)
 		mu.Unlock()
 
 		saveJob()
 	}
 
 	// Initialisation du job
-	logger.Info("▶️ job started", "id", jobID, "action", action, "input", input)
+	logger.Info("▶️ job started", "id", jobID, "action", action)
 	job.Set("status", "processing")
 	job.Set("progress", 1)
 	saveJob()
@@ -72,7 +75,18 @@ func handleJobExecution(app *pocketbase.PocketBase, job *core.Record) {
 	jobDone := make(chan struct{}, 1)
 	timeout := 10 * time.Second
 
-	cmd := exec.Command("deno", "run", "--allow-all", "jobs/"+action+".ts", jobID, input)
+	jobBytes, err := job.MarshalJSON()
+	if err != nil {
+		logJob("error", "failed to marshal input", err.Error())
+		job.Set("status", "failed")
+		job.Set("error", "Invalid input JSON")
+		saveJob()
+		return
+	}
+
+	jobJson := string(jobBytes)
+
+	cmd := exec.Command("deno", "run", "--allow-all", "jobs/"+action+".ts", jobJson)
 
 	// Goroutine de surveillance du progrès
 	go func() {
@@ -88,7 +102,7 @@ func handleJobExecution(app *pocketbase.PocketBase, job *core.Record) {
 				}
 				timer.Reset(timeout)
 			case <-timer.C:
-				logJob("ERROR", "Timeout: no progress update within 10s")
+				logJob("ERROR", "timeout")
 				job.Set("status", "failed")
 				job.Set("error", "No progress update within timeout")
 				saveJob()
@@ -140,20 +154,33 @@ func handleJobExecution(app *pocketbase.PocketBase, job *core.Record) {
 					default:
 					}
 				}
+
 			case strings.HasPrefix(line, "result "):
-				result := strings.TrimPrefix(line, "result ")
-				job.Set("result", result)
+				resultString := strings.TrimPrefix(line, "result ")
+				var result any
+
+				// Tente de parser en JSON
+				if err := json.Unmarshal([]byte(resultString), &result); err != nil {
+					// Si c'est pas du JSON, on enregistre la chaîne brute
+					job.Set("result", resultString)
+				} else {
+					// Si c'est du JSON valide, on enregistre l'objet décodé
+					job.Set("result", result)
+				}
+
 				saveJob()
+
 			case strings.HasPrefix(line, "error "):
 				errMsg := strings.TrimPrefix(line, "error ")
 				job.Set("error", errMsg)
 				saveJob()
+
 			default:
-				logJob("INFO", line)
+				logJob("info", line)
 			}
 		}
 		if err := scanner.Err(); err != nil {
-			logJob("ERROR", "stdout scanner error: "+err.Error())
+			logJob("error", "stdout scanner error", err.Error())
 		}
 	}()
 
@@ -162,10 +189,10 @@ func handleJobExecution(app *pocketbase.PocketBase, job *core.Record) {
 		defer wg.Done()
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
-			logJob("ERROR", scanner.Text())
+			logJob("error", scanner.Text())
 		}
 		if err := scanner.Err(); err != nil {
-			logJob("ERROR", "stderr scanner error: "+err.Error())
+			logJob("error", "stderr scanner error: ", err.Error())
 		}
 	}()
 
