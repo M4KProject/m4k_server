@@ -8,6 +8,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -94,12 +95,12 @@ func handleJobExecution(app *pocketbase.PocketBase, job *core.Record) {
 		isUpdate = true
 	}
 
-	sync := func() {
+	save := func() {
 		if !isUpdate {
 			return
 		}
 
-		log("D", "sync", now())
+		log("D", "save", now())
 
 		mu.Lock()
 		defer mu.Unlock()
@@ -121,13 +122,13 @@ func handleJobExecution(app *pocketbase.PocketBase, job *core.Record) {
 	}
 
 	// Enregistre à la fin du job
-	defer sync()
+	defer save()
 
 	// Initialisation du job
 	logger.Info("▶️ job started", "id", job.Id)
 	set("status", "processing")
 	set("progress", 1)
-	sync()
+	save()
 
 	jobBytes, err := job.MarshalJSON()
 	if err != nil {
@@ -144,13 +145,13 @@ func handleJobExecution(app *pocketbase.PocketBase, job *core.Record) {
 
 	// Mise en place du watchdog de sync et timeout
 	timer := setInterval(func() {
-		if time.Now() > lastUpdated+timeoutSecond {
+		if time.Now().After(lastUpdated.Add(timeoutSecond)) {
 			set("status", "failed")
 			set("error", "No update within timeout")
 			cmd.Process.Kill()
 		}
 
-		sync()
+		save()
 	}, 2000)
 	defer clearInterval(timer)
 
@@ -187,7 +188,11 @@ func handleJobExecution(app *pocketbase.PocketBase, job *core.Record) {
 
 			switch prefix {
 			case "progress":
-				set("progress", int(parseFloat(rest)))
+				if val, err := strconv.ParseFloat(rest, 64); err == nil {
+					set("progress", int(val))
+				} else {
+					log("E", "invalid progress value", rest)
+				}
 			case "result":
 				var result any
 				if err := json.Unmarshal([]byte(rest), &result); err != nil {
