@@ -2,23 +2,26 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
-	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
+	"math"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 )
 
-const maxParallelJobs = 3 // Max de jobs exécutés simultanément
-const timeoutSecond = 10 * time.Second
+const (
+	maxParallelJobs = 3 // Max de jobs exécutés simultanément
+	timeoutSecond   = 10 * time.Second
+)
 
 var jobSemaphore = make(chan struct{}, maxParallelJobs) // Sémaphore de contrôle de concurrence
 
@@ -26,8 +29,8 @@ type Interval struct {
 	stop chan struct{}
 }
 
-// setInterval lance une fonction toutes les `ms` millisecondes
-func setInterval(fn func(), ms int) *Interval {
+// startInterval démarre une exécution répétée de fn toutes les ms millisecondes
+func startInterval(fn func(), ms int) *Interval {
 	interval := &Interval{stop: make(chan struct{})}
 
 	ticker := time.NewTicker(time.Duration(ms) * time.Millisecond)
@@ -47,90 +50,90 @@ func setInterval(fn func(), ms int) *Interval {
 	return interval
 }
 
-// clearInterval arrête l'intervalle
-func clearInterval(i *Interval) {
+// stopInterval arrête l'exécution répétée
+func stopInterval(i *Interval) {
 	close(i.stop)
 }
 
-// handleJobExecution exécute un job en backend (appelé à la création du record)
-func handleJobExecution(app *pocketbase.PocketBase, job *core.Record) {
+// startJob exécute un job en backend (appelé à la création du record)
+func startJob(app *pocketbase.PocketBase, job *core.Record) {
 	logger := app.Logger()
 
 	// 🔐 Mutex pour les accès concurrents
 	var (
 		mu          sync.Mutex
-		isUpdate    bool = false
-		isLogUpdate bool = false
-		logBuilder  strings.Builder
-		lastUpdated time.Time
+		isUpdate    atomic.Bool
+		isLogUpdate atomic.Bool
+		lastUpdated atomic.Int64
+		logs        strings.Builder
 	)
+	isUpdate.Store(false)
+	isLogUpdate.Store(false)
 
-	now := func() string {
-		return time.Now().Format(time.RFC3339)
-	}
-
-	set := func(key string, value any) {
+	// Utilitaires thread-safe pour modifier l'état du job
+	set := func(key string, val any) {
 		mu.Lock()
-		defer mu.Unlock()
 
-		job.Set(key, value)
-		isUpdate = true
-		lastUpdated = time.Now()
+		job.Set(key, val)
+
+		mu.Unlock()
+
+		isUpdate.Store(true)
+		lastUpdated.Store(time.Now().UnixNano())
 	}
 
 	log := func(level string, args ...any) {
 		mu.Lock()
-		defer mu.Unlock()
 
-		logBuilder.WriteString(level)
+		logs.WriteString(level)
 
 		for _, arg := range args {
-			logBuilder.WriteString(" ")
-			logBuilder.WriteString(fmt.Sprint(arg))
+			logs.WriteString(" ")
+			logs.WriteString(fmt.Sprint(arg))
 		}
 
-		logBuilder.WriteString("\n")
+		logs.WriteString("\n")
 
-		isLogUpdate = true
-		isUpdate = true
+		mu.Unlock()
+
+		isUpdate.Store(true)
+		lastUpdated.Store(time.Now().UnixNano())
+		isLogUpdate.Store(true)
 	}
 
-	save := func() {
-		if !isUpdate {
+	// Synchronise les modifications du job avec la base
+	flushState := func() {
+		if !isUpdate.Load() {
 			return
 		}
+		isUpdate.Store(false)
 
-		log("D", "save", now())
+		if isLogUpdate.Load() {
+			set("logs", logs.String())
+			isLogUpdate.Store(false)
+		}
+
+		log("T", time.Now().Format(time.RFC3339))
 
 		mu.Lock()
-		defer mu.Unlock()
-
-		if isLogUpdate {
-			logs := logBuilder.String()
-			logger.Debug("📄 job logs", "id", job.Id, "logs", logs)
-			job.Set("logs", logBuilder.String())
-
-			isLogUpdate = false
-		}
 
 		// Sauvegarde sécurisée du record avec timestamp
 		if err := app.Save(job); err != nil {
-			logger.Error("❌ job save failed", "id", job.Id, "err", err)
+			logger.Error("❌ job flushState failed", "id", job.Id, "err", err)
 		}
 
-		isUpdate = false
+		mu.Unlock()
 	}
 
-	// Enregistre à la fin du job
-	defer save()
+	defer flushState()
 
 	// Initialisation du job
 	logger.Info("▶️ job started", "id", job.Id)
 	set("status", "processing")
 	set("progress", 1)
-	save()
+	flushState()
 
-	jobBytes, err := job.MarshalJSON()
+	jobJSON, err := job.MarshalJSON()
 	if err != nil {
 		log("E", "failed to marshal job", err.Error())
 		set("status", "failed")
@@ -138,22 +141,27 @@ func handleJobExecution(app *pocketbase.PocketBase, job *core.Record) {
 		return
 	}
 
-	jobJson := string(jobBytes)
+	// sécurise le nom du script
+	action := filepath.Base(job.GetString("action"))
+	script := filepath.Join("jobs", action+".ts")
 
-	action := job.GetString("action")
-	cmd := exec.Command("deno", "run", "--allow-all", "jobs/"+action+".ts", jobJson)
+	// process avec contexte
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	// Mise en place du watchdog de sync et timeout
-	timer := setInterval(func() {
-		if time.Now().After(lastUpdated.Add(timeoutSecond)) {
+	cmd := exec.CommandContext(ctx, "deno", "run", "--allow-all", script, string(jobJSON))
+
+	// Démarre le watchdog qui surveille les updates
+	timer := startInterval(func() {
+		if time.Now().UnixNano()-lastUpdated.Load() > int64(timeoutSecond) {
 			set("status", "failed")
 			set("error", "No update within timeout")
 			cmd.Process.Kill()
 		}
 
-		save()
+		flushState()
 	}, 2000)
-	defer clearInterval(timer)
+	defer stopInterval(timer)
 
 	// Préparation des pipes stdout / stderr
 	stdout, err := cmd.StdoutPipe()
@@ -184,38 +192,49 @@ func handleJobExecution(app *pocketbase.PocketBase, job *core.Record) {
 			line := scanner.Text()
 
 			parts := strings.SplitN(line, " ", 2)
+
+			if len(parts) < 2 {
+				log("D", line)
+				continue
+			}
+
 			prefix, rest := parts[0], parts[1]
 
 			switch prefix {
 			case "progress":
 				if val, err := strconv.ParseFloat(rest, 64); err == nil {
-					set("progress", int(val))
+					set("progress", int(math.Round(val)))
 				} else {
 					log("E", "invalid progress value", rest)
 				}
+				continue
 			case "result":
 				var result any
 				if err := json.Unmarshal([]byte(rest), &result); err != nil {
-					log("E", "error unmarshal result", line)
-					continue
+					result = rest
 				}
 				logger.Info("job result", "id", job.Id, "result", result)
 				set("result", result)
+				continue
 			case "error":
 				log("E", rest)
+				continue
 			case "warn":
 				log("W", rest)
+				continue
 			case "info":
 				log("I", rest)
+				continue
 			case "debug":
 				log("D", rest)
+				continue
 			default:
 				log("D", line)
+				continue
 			}
 		}
 
 		if err := scanner.Err(); err != nil {
-			logger.Error("❌ stdout scanner error", err)
 			log("E", "stdout scanner error", err.Error())
 		}
 	}()
@@ -231,7 +250,6 @@ func handleJobExecution(app *pocketbase.PocketBase, job *core.Record) {
 		}
 
 		if err := scanner.Err(); err != nil {
-			logger.Error("❌ stderr scanner error", err)
 			log("E", "stderr scanner error", err.Error())
 		}
 	}()
@@ -266,21 +284,47 @@ func handleJobExecution(app *pocketbase.PocketBase, job *core.Record) {
 	logger.Info("✅ job finished", "id", job.Id)
 }
 
+func safeGo(fn func()) {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Printf("panic: %v\n", r)
+			}
+		}()
+		fn()
+	}()
+}
+
+func handleJob(app *pocketbase.PocketBase, job *core.Record) {
+	app.Logger().Debug("handleJob", "id", job.Id, "status", job.GetString("status"))
+
+	if job.GetString("status") != "" { // déjà traité
+		return
+	}
+
+	safeGo(func() {
+		// 🔒 Contrôle de concurrence : limite le nombre de jobs actifs
+		app.Logger().Info("⏳ wait slot", "id", job.Id)
+		jobSemaphore <- struct{}{}
+		defer func() { <-jobSemaphore }()
+		app.Logger().Debug("🚀 slot ok", "id", job.Id)
+
+		startJob(app, job)
+	})
+
+	// Attendre un peu pour les jobs rapide (obtenir directement le resultat)
+	time.Sleep(2000)
+}
+
 // bindJobs attache le handler sur création de job
 func bindJobs(app *pocketbase.PocketBase) {
-	app.OnRecordAfterCreateSuccess("jobs").BindFunc(func(e *core.RecordEvent) error {
-		job := e.Record
+	app.OnRecordCreateExecute("jobs").BindFunc(func(e *core.RecordEvent) error {
+		handleJob(app, e.Record)
+		return e.Next()
+	})
 
-		go func() {
-			// 🔒 Contrôle de concurrence : limite le nombre de jobs actifs
-			app.Logger().Debug("⏳ waiting for available job slot", "id", job.Id)
-			jobSemaphore <- struct{}{}
-			defer func() { <-jobSemaphore }()
-			app.Logger().Debug("🚀 acquired job slot", "id", job.Id)
-
-			handleJobExecution(app, job)
-		}()
-
-		return nil
+	app.OnRecordUpdateExecute("jobs").BindFunc(func(e *core.RecordEvent) error {
+		handleJob(app, e.Record)
+		return e.Next()
 	})
 }
