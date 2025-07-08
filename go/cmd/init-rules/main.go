@@ -68,9 +68,9 @@ func initRule(app *pocketbase.PocketBase, coll *core.Collection) {
 	coll.UpdateRule = toRule(editRule)
 	coll.DeleteRule = toRule(editRule)
 
-	// if coll.Name == "groups" {
-	// 	coll.CreateRule = toRule(`_auth_ != "" && user = _auth_`)
-	// }
+	if coll.Name == "groups" {
+		coll.CreateRule = toRule(`auth != "" && user = auth`)
+	}
 
 	err := app.Save(coll)
 	if err != nil {

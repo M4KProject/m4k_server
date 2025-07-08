@@ -8,7 +8,6 @@ import (
 	"math"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -55,6 +54,15 @@ func stopInterval(i *Interval) {
 	close(i.stop)
 }
 
+// parse tente de décoder une chaîne JSON. Si échec, retourne la chaîne brute.
+func parse(str string) any {
+	var result any
+	if err := json.Unmarshal([]byte(str), &result); err != nil {
+		return str
+	}
+	return result
+}
+
 // startJob exécute un job en backend (appelé à la création du record)
 func startJob(app *pocketbase.PocketBase, job *core.Record) {
 	logger := app.Logger()
@@ -88,7 +96,7 @@ func startJob(app *pocketbase.PocketBase, job *core.Record) {
 		logs.WriteString(level)
 
 		for _, arg := range args {
-			logs.WriteString(" ")
+			logs.WriteString("\t")
 			logs.WriteString(fmt.Sprint(arg))
 		}
 
@@ -120,6 +128,11 @@ func startJob(app *pocketbase.PocketBase, job *core.Record) {
 		// Sauvegarde sécurisée du record avec timestamp
 		if err := app.Save(job); err != nil {
 			logger.Error("❌ job flushState failed", "id", job.Id, "err", err)
+			job.Set("logs", nil)
+			job.Set("result", nil)
+			job.Set("status", "failed")
+			job.Set("error", err.Error())
+			app.Save(job)
 		}
 
 		mu.Unlock()
@@ -186,71 +199,90 @@ func startJob(app *pocketbase.PocketBase, job *core.Record) {
 	// Traitement de la sortie standard (stdout)
 	go func() {
 		defer wg.Done()
-		scanner := bufio.NewScanner(stdout)
 
-		for scanner.Scan() {
-			line := scanner.Text()
+		stdoutReader := bufio.NewReader(stdout)
 
-			parts := strings.SplitN(line, " ", 2)
+		for {
+			// Lecture d'une ligne depuis stdout
+			line, err := stdoutReader.ReadString('\n')
+			if err != nil {
+				// En cas d'erreur autre que EOF, on log l'erreur
+				if err.Error() != "EOF" {
+					log("E", "stdout reader error", err.Error())
+				}
+				break
+			}
 
-			if len(parts) < 2 {
+			// Nettoyage de la fin de ligne
+			line = strings.TrimRight(line, "\r\n")
+
+			// Découpage de la ligne en éléments tabulés
+			fields := strings.Split(line, "\t")
+
+			// S'il n'y a pas au moins une propriété et une valeur, ignorer la ligne
+			if len(fields) <= 1 {
 				log("D", line)
 				continue
 			}
 
-			prefix, rest := parts[0], parts[1]
+			// Le premier champ est la "clé" ou type de message
+			messageType := fields[0]
+			rawValues := fields[1:]
 
-			switch prefix {
+			// Pour les cas comme "progress" ou "result", on prend la première valeur
+			var rawValue string
+			if len(rawValues) > 0 {
+				rawValue = rawValues[0]
+			}
+
+			// Gestion en fonction du type de message
+			switch messageType {
 			case "progress":
-				if val, err := strconv.ParseFloat(rest, 64); err == nil {
-					set("progress", int(math.Round(val)))
+				if num, ok := parse(rawValue).(float64); ok {
+					set("progress", int(math.Round(num)))
 				} else {
-					log("E", "invalid progress value", rest)
+					log("E", "invalid progress value", rawValue)
 				}
-				continue
-			case "result":
-				var result any
-				if err := json.Unmarshal([]byte(rest), &result); err != nil {
-					result = rest
-				}
-				logger.Info("job result", "id", job.Id, "result", result)
-				set("result", result)
-				continue
-			case "error":
-				log("E", rest)
-				continue
-			case "warn":
-				log("W", rest)
-				continue
-			case "info":
-				log("I", rest)
-				continue
-			case "debug":
-				log("D", rest)
-				continue
-			default:
-				log("D", line)
-				continue
-			}
-		}
 
-		if err := scanner.Err(); err != nil {
-			log("E", "stdout scanner error", err.Error())
+			case "result":
+				logger.Info("job result", "id", job.Id, "result", rawValue)
+				set("result", parse(rawValue))
+
+			case "E", "W", "I", "D":
+				args := make([]any, len(rawValues))
+				for i, v := range rawValues {
+					args[i] = v
+				}
+				log(messageType, args...)
+
+			default:
+				args := make([]any, len(rawValues))
+				for i, v := range rawValues {
+					args[i] = v
+				}
+				log("D", args...)
+			}
 		}
 	}()
 
 	// Traitement de la sortie d'erreur (stderr)
 	go func() {
 		defer wg.Done()
-		scanner := bufio.NewScanner(stderr)
 
-		for scanner.Scan() {
-			line := scanner.Text()
+		reader := bufio.NewReader(stderr)
+
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				if err.Error() != "EOF" {
+					log("E", "stderr reader error", err.Error())
+				}
+				break
+			}
+
+			line = strings.TrimRight(line, "\r\n")
+
 			log("E", line)
-		}
-
-		if err := scanner.Err(); err != nil {
-			log("E", "stderr scanner error", err.Error())
 		}
 	}()
 
@@ -302,6 +334,12 @@ func handleJob(app *pocketbase.PocketBase, job *core.Record) {
 		return
 	}
 
+	job.Set("logs", nil)
+	job.Set("result", nil)
+
+	// jobCopy := job.Clone()
+	// jobCopy.MarkAsNotNew()
+
 	safeGo(func() {
 		// 🔒 Contrôle de concurrence : limite le nombre de jobs actifs
 		app.Logger().Info("⏳ wait slot", "id", job.Id)
@@ -318,12 +356,12 @@ func handleJob(app *pocketbase.PocketBase, job *core.Record) {
 
 // bindJobs attache le handler sur création de job
 func bindJobs(app *pocketbase.PocketBase) {
-	app.OnRecordCreateExecute("jobs").BindFunc(func(e *core.RecordEvent) error {
+	app.OnRecordAfterCreateSuccess("jobs").BindFunc(func(e *core.RecordEvent) error {
 		handleJob(app, e.Record)
 		return e.Next()
 	})
 
-	app.OnRecordUpdateExecute("jobs").BindFunc(func(e *core.RecordEvent) error {
+	app.OnRecordAfterUpdateSuccess("jobs").BindFunc(func(e *core.RecordEvent) error {
 		handleJob(app, e.Record)
 		return e.Next()
 	})

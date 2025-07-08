@@ -22,8 +22,11 @@ services:
       - "8090:8090"
     environment:
       DENO_ENV: production
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     volumes:
       - ./jobs:/app/jobs
+      - ../common:/app/common
       - ./pb_data:/app/pb_data
       - ./pb_hooks:/app/pb_hooks
       - ./pb_migrations:/app/pb_migrations
