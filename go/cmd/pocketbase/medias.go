@@ -69,7 +69,7 @@ func getVideoWidthHeightDuration(logger *slog.Logger, file *filesystem.File) (in
 	defer reader.Close()
 
 	// Préparer ffprobe avec stdin
-	cmd := exec.Command("./ffprobe",
+	cmd := exec.Command("ffprobe",
 		"-v", "quiet",
 		"-print_format", "json",
 		"-show_format",
@@ -127,12 +127,12 @@ func getImageWidthHeight(logger *slog.Logger, file *filesystem.File) (int, int) 
 	return cfg.Width, cfg.Height
 }
 
-func onMediaCreate(e *core.RecordRequestEvent) error {
+func onBeforeCreateMedia(e *core.RecordRequestEvent) error {
 	app := e.App
-	record := e.Record
+	media := e.Record
 	logger := app.Logger()
 
-	file, ok := record.GetRaw("file").(*filesystem.File)
+	file, ok := media.GetRaw("file").(*filesystem.File)
 	if !ok {
 		logger.Error("❌ Impossible d'accéder au champ 'file'")
 		return e.Next()
@@ -140,27 +140,32 @@ func onMediaCreate(e *core.RecordRequestEvent) error {
 
 	logger.Info("📦 onMediaCreate", "filename", file.OriginalName, "size", file.Size)
 
-	record.Set("size", file.Size)
+	media.Set("size", file.Size)
+
+	if media.GetString("name") == "" {
+		media.Set("name", file.Name)
+	}
 
 	mimeType := getMimeType(logger, file)
-	record.Set("type", mimeType)
+	media.Set("type", mimeType)
 
 	if strings.HasPrefix(mimeType, "video") {
 		width, height, duration := getVideoWidthHeightDuration(logger, file)
-		record.Set("width", width)
-		record.Set("height", height)
-		record.Set("duration", duration)
+		media.Set("width", width)
+		media.Set("height", height)
+		media.Set("duration", duration)
 	}
 
 	if strings.HasPrefix(mimeType, "image") {
 		width, height := getImageWidthHeight(logger, file)
-		record.Set("width", width)
-		record.Set("height", height)
+		media.Set("width", width)
+		media.Set("height", height)
 	}
 
 	return e.Next()
 }
 
 func bindMedias(app *pocketbase.PocketBase) {
-	app.OnRecordCreateRequest("medias").BindFunc(onMediaCreate)
+	app.OnRecordCreateRequest("medias").BindFunc(onBeforeCreateMedia)
+	// app.OnRecordAfterCreateSuccess("medias").BindFunc(onAfterCreateMedia)
 }
