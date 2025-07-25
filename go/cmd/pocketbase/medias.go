@@ -34,6 +34,13 @@ type FFProbeOutput struct {
 	} `json:"streams"`
 }
 
+type MediaData struct {
+	Width      int         `json:"width,omitempty"`
+	Height     int         `json:"height,omitempty"`
+	DurationMs int         `json:"durationMs,omitempty"`
+	FFProbe    interface{} `json:"ffprobe,omitempty"`
+}
+
 func getMimeType(logger *slog.Logger, file *filesystem.File) string {
 	reader, err := file.Reader.Open()
 	if err != nil {
@@ -57,14 +64,12 @@ func getMimeType(logger *slog.Logger, file *filesystem.File) string {
 	return mimeType
 }
 
-func getVideoWidthHeightDuration(logger *slog.Logger, file *filesystem.File) (int, int, int) {
-	var width, height, duration int = 0, 0, 0
-
+func getVideoInfo(logger *slog.Logger, file *filesystem.File) (*MediaData, error) {
 	// Ouvrir le fichier (ReadSeekCloser)
 	reader, err := file.Reader.Open()
 	if err != nil {
 		logger.Error("❌ Erreur ouverture fichier", "err", err)
-		return 0, 0, 0
+		return nil, err
 	}
 	defer reader.Close()
 
@@ -84,36 +89,47 @@ func getVideoWidthHeightDuration(logger *slog.Logger, file *filesystem.File) (in
 
 	if err := cmd.Run(); err != nil {
 		logger.Error("❌ Erreur exécution ffprobe", "err", err, "out", out.String())
-		return 0, 0, 0
+		return nil, err
 	}
 
 	var probe FFProbeOutput
 	if err := json.Unmarshal(out.Bytes(), &probe); err != nil {
 		logger.Error("❌ Erreur parsing JSON ffprobe", "err", err)
-		return 0, 0, 0
+		return nil, err
 	}
 
-	// Duration et dimensions
-	if len(probe.Streams) > 0 {
-		width = probe.Streams[0].Width
-		height = probe.Streams[0].Height
+	// Créer la structure MediaData
+	mediaData := &MediaData{}
+
+	// Chercher le stream vidéo
+	for _, stream := range probe.Streams {
+		if stream.Type == "video" {
+			mediaData.Width = stream.Width
+			mediaData.Height = stream.Height
+			break
+		}
 	}
 
-	// duration est une string dans ffprobe
+	// Duration en millisecondes
 	durationFloat, err := strconv.ParseFloat(probe.Format.Duration, 64)
 	if err == nil {
-		duration = int(durationFloat * 1000)
+		mediaData.DurationMs = int(durationFloat * 1000)
 	}
 
-	return width, height, duration
+	// Stocker le ffprobe complet
+	var ffprobeData interface{}
+	json.Unmarshal(out.Bytes(), &ffprobeData)
+	mediaData.FFProbe = ffprobeData
+
+	return mediaData, nil
 }
 
-func getImageWidthHeight(logger *slog.Logger, file *filesystem.File) (int, int) {
+func getImageInfo(logger *slog.Logger, file *filesystem.File) (*MediaData, error) {
 	// Ouvrir le fichier (ReadSeekCloser)
 	reader, err := file.Reader.Open()
 	if err != nil {
 		logger.Error("❌ Erreur ouverture fichier", "err", err)
-		return 0, 0
+		return nil, err
 	}
 	defer reader.Close()
 
@@ -121,51 +137,71 @@ func getImageWidthHeight(logger *slog.Logger, file *filesystem.File) (int, int) 
 	cfg, _, err := image.DecodeConfig(reader)
 	if err != nil {
 		logger.Error("❌ Erreur lecture dimensions image", "err", err)
-		return 0, 0
+		return nil, err
 	}
 
-	return cfg.Width, cfg.Height
+	mediaData := &MediaData{
+		Width:  cfg.Width,
+		Height: cfg.Height,
+	}
+
+	return mediaData, nil
 }
 
-func onBeforeCreateMedia(e *core.RecordRequestEvent) error {
+func processMediaFile(e *core.RecordRequestEvent) error {
 	app := e.App
 	media := e.Record
 	logger := app.Logger()
 
+	// Vérifier si le fichier existe ou a été modifié
 	file, ok := media.GetRaw("file").(*filesystem.File)
-	if !ok {
-		logger.Error("❌ Impossible d'accéder au champ 'file'")
+	if !ok || file == nil {
+		logger.Info("📦 Pas de nouveau fichier")
 		return e.Next()
 	}
 
-	logger.Info("📦 onMediaCreate", "filename", file.OriginalName, "size", file.Size)
+	logger.Info("📦 Processing media file", "filename", file.OriginalName, "size", file.Size)
 
+	// Toujours mettre à jour size et type
 	media.Set("size", file.Size)
 
+	// Si le nom est vide, utiliser le nom du fichier
 	if media.GetString("name") == "" {
 		media.Set("name", file.Name)
 	}
 
+	// Détecter le mime type
 	mimeType := getMimeType(logger, file)
 	media.Set("type", mimeType)
 
+	// Traiter selon le type de média
+	var mediaData *MediaData
+	var err error
+
 	if strings.HasPrefix(mimeType, "video") {
-		width, height, duration := getVideoWidthHeightDuration(logger, file)
-		media.Set("width", width)
-		media.Set("height", height)
-		media.Set("duration", duration)
+		mediaData, err = getVideoInfo(logger, file)
+		if err != nil {
+			logger.Error("❌ Erreur traitement vidéo", "err", err)
+		}
+	} else if strings.HasPrefix(mimeType, "image") {
+		mediaData, err = getImageInfo(logger, file)
+		if err != nil {
+			logger.Error("❌ Erreur traitement image", "err", err)
+		}
 	}
 
-	if strings.HasPrefix(mimeType, "image") {
-		width, height := getImageWidthHeight(logger, file)
-		media.Set("width", width)
-		media.Set("height", height)
+	// Si on a des données, les sauvegarder dans le champ data
+	if mediaData != nil {
+		media.Set("data", mediaData)
 	}
 
 	return e.Next()
 }
 
 func bindMedias(app *pocketbase.PocketBase) {
-	app.OnRecordCreateRequest("medias").BindFunc(onBeforeCreateMedia)
-	// app.OnRecordAfterCreateSuccess("medias").BindFunc(onAfterCreateMedia)
+	// Hook pour la création
+	app.OnRecordCreateRequest("medias").BindFunc(processMediaFile)
+
+	// Hook pour la modification
+	app.OnRecordUpdateRequest("medias").BindFunc(processMediaFile)
 }

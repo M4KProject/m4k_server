@@ -16,7 +16,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: 0.25
+          cpus: 0.8 # 80% des 2 vCPU
+          memory: 4G
+        reservations:
+          cpus: 0.2  # Réserver au minimum 20% des CPU
           memory: 2G
     ports:
       - "8090:8090"

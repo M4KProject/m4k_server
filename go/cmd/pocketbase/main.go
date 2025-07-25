@@ -12,6 +12,9 @@ func main() {
 	bindServe(app)
 	bindJobs(app)
 
+	// Bind du transcodage vidéo
+	bindTranscode(app)
+
 	if err := app.Start(); err != nil {
 		panic(err)
 	}
