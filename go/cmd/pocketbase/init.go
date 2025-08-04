@@ -93,17 +93,12 @@ func initRules(app *pocketbase.PocketBase) {
 	}
 }
 
-func main() {
-	app := pocketbase.New()
-
+func bindInit(app *pocketbase.PocketBase) {
 	app.RootCmd.AddCommand(&cobra.Command{
-		Use: "init",
+		Use:   "init",
+		Short: "Initialize collections and security rules",
 		Run: func(cmd *cobra.Command, args []string) {
 			initRules(app)
 		},
 	})
-
-	if err := app.Start(); err != nil {
-		panic(err)
-	}
 }
