@@ -32,3 +32,5 @@ ffmpeg/
 ffmpeg/
 
 common
+
+go/pocketbase
