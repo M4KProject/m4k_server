@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e # Arrêter le script à la première erreur
 
 # Script runner pour tous les scripts dans scripts/
 
