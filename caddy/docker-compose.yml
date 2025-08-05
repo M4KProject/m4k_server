@@ -1,0 +1,39 @@
+name: caddy
+
+services:
+
+  caddy:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: 0.5
+          memory: 4G
+    container_name: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY}
+      # AWS_REGION: ${S3_REGION}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../workspace:/srv/workspace:ro
+      # - ../workspace/my-admin/dist:/srv/my-admin:ro
+      # - ../workspace/app/dist:/srv/app:ro
+
+networks:
+  default:
+    name: web
+    external: true
+
+volumes:
+  caddy_data:
+  caddy_config:
