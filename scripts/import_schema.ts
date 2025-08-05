@@ -6,7 +6,7 @@ import { pbAuth, pbFetch } from "./_helpers.ts";
 await pbAuth();
 
 // 2️⃣ Lecture du fichier pb_schema.json
-const schemaText = await Deno.readTextFile("pb_schema.json");
+const schemaText = await Deno.readTextFile("../pocketbase/pb_schema.json");
 const schema = JSON.parse(schemaText);
 
 if (!Array.isArray(schema)) {

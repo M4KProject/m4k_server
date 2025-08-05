@@ -55,13 +55,17 @@ echo ""
 echo -e "${GREEN}▶ Exécution de: $script_name${NC}"
 echo "================================="
 
+# Changer vers le répertoire scripts pour l'exécution
+cd scripts
+
 # Déterminer comment exécuter le script
-case "$selected_script" in
+script_basename=$(basename "$selected_script")
+case "$script_basename" in
   *.sh)
-    bash "$selected_script"
+    bash "$script_basename"
     ;;
   *.ts)
-    deno run --allow-all "$selected_script"
+    deno run --allow-all "$script_basename"
     ;;
   *)
     echo "❌ Type de script non supporté"

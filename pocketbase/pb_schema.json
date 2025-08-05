@@ -154,7 +154,7 @@
       "CREATE UNIQUE INDEX `idx_lI6NdLEj67` ON `contents` (\n  `key`,\n  `group`\n)"
     ],
     "created": "2025-05-23 12:28:50.251Z",
-    "updated": "2025-06-16 13:48:00.362Z",
+    "updated": "2025-08-04 16:48:52.686Z",
     "system": false
   },
   {
@@ -430,7 +430,7 @@
       "CREATE UNIQUE INDEX `idx_uSAhmUBLwl` ON `devices` (`key`)"
     ],
     "created": "2025-05-23 12:28:50.260Z",
-    "updated": "2025-06-13 12:42:11.357Z",
+    "updated": "2025-08-04 16:48:52.693Z",
     "system": false
   },
   {
@@ -605,7 +605,7 @@
       "CREATE INDEX `idx_CpaKol68gh` ON `medias` (\n  `group`,\n  `name`\n)"
     ],
     "created": "2025-05-23 12:28:50.262Z",
-    "updated": "2025-07-23 09:44:54.920Z",
+    "updated": "2025-08-04 16:48:52.699Z",
     "system": false
   },
   {
@@ -711,7 +711,7 @@
       "CREATE UNIQUE INDEX `idx_WmY6IEY9vh` ON `groups` (`key`)"
     ],
     "created": "2025-05-23 12:28:50.265Z",
-    "updated": "2025-07-06 08:37:36.193Z",
+    "updated": "2025-08-04 16:48:52.702Z",
     "system": false
   },
   {
@@ -893,7 +893,7 @@
     ],
     "indexes": [],
     "created": "2025-05-23 12:28:50.267Z",
-    "updated": "2025-07-23 09:47:53.318Z",
+    "updated": "2025-08-04 16:48:52.705Z",
     "system": false
   },
   {
@@ -997,16 +997,16 @@
       "CREATE UNIQUE INDEX `idx_Avpuac2SB0` ON `members` (\n  `user`,\n  `group`\n)"
     ],
     "created": "2025-05-23 12:28:50.269Z",
-    "updated": "2025-06-13 12:42:11.368Z",
+    "updated": "2025-08-04 16:48:52.710Z",
     "system": false
   },
   {
     "id": "pbc_1430014197",
-    "listRule": null,
-    "viewRule": null,
-    "createRule": null,
-    "updateRule": null,
-    "deleteRule": null,
+    "listRule": "@request.auth.id != \"\" && group.members_via_group.user ?= @request.auth.id && group.members_via_group.role ?>= 10",
+    "viewRule": "@request.auth.id != \"\" && group.members_via_group.user ?= @request.auth.id && group.members_via_group.role ?>= 10",
+    "createRule": "@request.auth.id != \"\" && group.members_via_group.user ?= @request.auth.id && group.members_via_group.role ?>= 20",
+    "updateRule": "@request.auth.id != \"\" && group.members_via_group.user ?= @request.auth.id && group.members_via_group.role ?>= 20",
+    "deleteRule": "@request.auth.id != \"\" && group.members_via_group.user ?= @request.auth.id && group.members_via_group.role ?>= 20",
     "name": "transcodes",
     "type": "base",
     "fields": [
@@ -1186,7 +1186,7 @@
     ],
     "indexes": [],
     "created": "2025-07-23 10:15:13.700Z",
-    "updated": "2025-07-23 15:54:31.993Z",
+    "updated": "2025-08-04 16:48:52.714Z",
     "system": false
   }
 ]

@@ -14,5 +14,5 @@ const schema = await (async () => {
 })();
 
 // Enregistrer dans pb_schema.json
-await Deno.writeTextFile('pb_schema.json', JSON.stringify(schema, null, 2));
+await Deno.writeTextFile('../pocketbase/pb_schema.json', JSON.stringify(schema, null, 2));
 console.log('✅ Schéma enregistré dans pb_schema.json');
