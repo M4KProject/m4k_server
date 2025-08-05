@@ -15,9 +15,6 @@ func main() {
 	// Bind du transcodage vidéo
 	bindTranscode(app)
 
-	// Bind de la commande init-rules
-	bindInit(app)
-
 	if err := app.Start(); err != nil {
 		panic(err)
 	}

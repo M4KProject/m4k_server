@@ -1,15 +1,6 @@
 #!/bin/bash
 
 # Script pour créer l'admin PocketBase
-# Lecture des variables depuis .env
-
-if [ ! -f .env ]; then
-    echo "Erreur: fichier .env non trouvé"
-    exit 1
-fi
-
-# Source le fichier .env
-source .env
 
 if [ -z "$ADMIN_EMAIL" ] || [ -z "$ADMIN_PASSWORD" ]; then
     echo "Erreur: ADMIN_EMAIL ou ADMIN_PASSWORD non défini dans .env"
