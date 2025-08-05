@@ -33,4 +33,4 @@ ffmpeg/
 
 common
 
-go/pocketbase
+pocketbase/go/pocketbase
