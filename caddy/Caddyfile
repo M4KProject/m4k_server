@@ -1,171 +1,50 @@
 {
 	# on force l’ordre des directives pour éviter les conflits
 	order replace after encode
-	order image_filter before file_server
-  	order s3proxy before file_server
+	# order image_filter before file_server
+  	# order s3proxy before file_server
 	email dev@mediactil.com
 }
-
-resize.a.m4k.fr {
-	log {
-		output stdout
-		format console
-		level DEBUG
-	}
-	handle /s/* {
-		# image_filter {
-		# 	fit {query.w} {query.h}
-		# }
-		reverse_proxy https://a.m4k.fr {
-			header_up Host {upstream_hostport}
-			header_down Content-Encoding ""
-			header_up Accept-Encoding ""
-			handle_response {
-				image_filter {
-					fit {query.w} {query.h}
-				}
-			}
-		}
-	}
-}
-
-
-
-	# handle_path /resize/* {
-	# 	# rewrite {path} {
-	# 	# 	to /test/{path}?{query}
-	# 	# }
-	# 	reverse_proxy https://a.m4k.fr
-	# 	respond "a.m4k.fr/test/* v1.0.1 path:{path} query:{query} uri:{uri}"
-		
-	# 	# header {
-	# 	# 	Access-Control-Allow-Origin *
-	# 	# 	Access-Control-Allow-Methods "GET, OPTIONS"
-	# 	# 	Access-Control-Allow-Headers *
-	# 	# 	Access-Control-Expose-Headers "Content-Disposition"
-	# 	# }
-		
-	# 	# @options {
-	# 	# 	method OPTIONS
-	# 	# }
-	# 	# respond @options 204
-
-	# 	# rewrite {path}/{http.request.uri.query.v}
-
-	# 	# handle {
-	# 	# 	image_filter {
-	# 	# 		resize width {http.request.uri.query.width}
-	# 	# 	}
-	# 	# }
-
-	# 	# s3proxy {
-	# 	# 	bucket           {S3_BUCKET}
-	# 	# 	region           {S3_REGION}
-	# 	# 	endpoint         {S3_ENDPOINT}
-	# 	# 	root             s
-	# 	# 	force_path_style
-	# 	# }
-	# }
 
 test.a.m4k.fr {
 	respond "test.a.m4k.fr path:{path} query:{query} uri:{uri}"
 }
 
-zonza.a.m4k.fr {
-	# respond "zonza.a.m4k.fr path:{path} query:{query} uri:{uri}"
-	reverse_proxy zonza.numericmenu.com {
-		header_up Host {upstream_hostport}
-	}
-}
-
-a.m4k.fr {
-	# log {
-	# 	output stdout
-	# 	format console
-	# 	level DEBUG
-	# }
-	
-	handle /rest/* {
-		reverse_proxy supabase-kong:8000
-	}
-	handle /api/* {
-		reverse_proxy supabase-kong:8000
-	}
-	handle /auth/* {
-		reverse_proxy supabase-kong:8000
-	}
-	handle /storage/* {
-		reverse_proxy supabase-kong:8000
-	}
-	handle_path /fun/* {
-		reverse_proxy fun:8080
-	}
-	handle_path /convert/* {
-		header {
-			Access-Control-Allow-Origin *
-			Access-Control-Allow-Methods "GET, OPTIONS"
-			Access-Control-Allow-Headers *
-			Access-Control-Expose-Headers "Content-Disposition"
-		}
-		
-		@options {
-			method OPTIONS
-		}
-		respond @options 204
-
-		s3proxy {
-			bucket           {S3_BUCKET}
-			region           {S3_REGION}
-			endpoint         {S3_ENDPOINT}
-			root             convert
-			force_path_style
-		}
-	}
-	handle_path /s/* {
-		header {
-			Access-Control-Allow-Origin *
-			Access-Control-Allow-Methods "GET, OPTIONS"
-			Access-Control-Allow-Headers *
-			Access-Control-Expose-Headers "Content-Disposition"
-		}
-		
-		@options {
-			method OPTIONS
-		}
-		respond @options 204
-
-		rewrite {path}/{http.request.uri.query.v}
-		
-		s3proxy {
-			bucket           {S3_BUCKET}
-			region           {S3_REGION}
-			endpoint         {S3_ENDPOINT}
-			root             s
-			force_path_style
-		}
-	}
-	handle_path /test/* {
-		respond "a.m4k.fr/test/* v1.0.1 path:{path} query:{query} uri:{uri}"
-	}
-
-	handle {
-		root * /srv/workspace/app/dist/
-		try_files {path} /index.html
-		file_server
-	}
-}
-
 pb.m4k.fr {
-	request_body {
-		max_size 10MB
-	}
-	reverse_proxy pocketbase:8080 {
-		header_up X-Forwarded-For {http.request.header.X-Forwarded-For}
-		header_up X-Real-IP {remote}
-		header_up Host {http.request.host}
-		transport http {
-			read_timeout 360s
+	# Handle API requests - proxy to PocketBase
+	handle_path /api/* {
+		request_body {
+			max_size 10MB
 		}
+		reverse_proxy pocketbase:8090 {
+			header_up X-Forwarded-For {http.request.header.X-Forwarded-For}
+			header_up X-Real-IP {remote}
+			header_up Host {http.request.host}
+			transport http {
+				read_timeout 360s
+			}
+		}
+	}
+
+	# Handle PocketBase admin UI
+	handle_path /_/* {
+		request_body {
+			max_size 10MB
+		}
+		reverse_proxy pocketbase:8090 {
+			header_up X-Forwarded-For {http.request.header.X-Forwarded-For}
+			header_up X-Real-IP {remote}
+			header_up Host {http.request.host}
+			transport http {
+				read_timeout 360s
+			}
+		}
+	}
+
+	# Serve static files from www folder
+	handle {
+		root * /srv/www
+		file_server
 	}
 }
 
@@ -187,124 +66,3 @@ fonts.m4k.fr {
 		respond "fonts.m4k.fr v1.0.1 path:{path} query:{query} uri:{uri}"
 	}
 }
-
-prod.m4k.fr {
-	# log {
-	# 	level DEBUG
-	# }
-
-	# Créer des règles spécifiques pour REST et auth avant la règle avec basic_auth
-	handle /rest/* {
-		reverse_proxy supabase-kong:8000
-	}
-	handle /api/* {
-		reverse_proxy supabase-kong:8000
-	}
-	handle /auth/* {
-		reverse_proxy supabase-kong:8000
-	}
-	handle /storage/* {
-		reverse_proxy supabase-kong:8000
-	}
-	handle_path /fun/* {
-		reverse_proxy fun:8080
-	}
-	# handle_path / {
-	# 	root * /srv/my-admin
-	# 	file_server
-	# }
-	# handle_path /my-admin/* {
-	# 	root * /srv/my-admin
-	# 	file_server
-	# }
-	handle_path /n8n/* {
-		reverse_proxy n8n:5678
-	}
-	handle_path /code/* {
-		basic_auth {
-			{ADMIN_USERNAME} {ADMIN_PASSWORD_HASHED}
-		}
-		reverse_proxy code:8443
-	}
-
-	handle {
-		basic_auth {
-			{ADMIN_USERNAME} {ADMIN_PASSWORD_HASHED}
-		}
-		header -Content-Security-Policy
-		header +Content-Security-Policy "frame-ancestors *"
-		header -X-Frame-Options
-		header +X-Frame-Options "ALLOWALL"
-		reverse_proxy supabase-kong:8000
-	}
-}
-
-
-# a.m4k.fr {
-#   log {
-#     output stdout
-#     level DEBUG
-#   }
-
-#   # Caddy enlève automatiquement "/jobs" de l’URL avant de passer au plugin
-#   handle_path /jobs/* {
-#     s3proxy {
-#       bucket           prod.m4k.fr
-#       region           eu-west-par
-#       endpoint         https://s3.eu-west-par.io.cloud.ovh.net
-#       force_path_style
-
-#       # on remet ici "jobs" devant la clé
-#       root             jobs
-#     }
-#   }
-
-#   # tout le reste du site
-#   root * /srv/app/
-#   file_server
-# }
-
-
-		# replace /project/* "<head>" "<head><script src='/inject/inject.js'></script>"
-		# reverse_proxy /project/* supabase-kong:8000 { header_up Accept-Encoding identity }
-
-	# # Authentication
-	# handle_path /keycloak* {
-	#     reverse_proxy keycloak:8080 {
-	#         header_up Host {host}
-	#         header_up X-Forwarded-For {remote_host}
-	#         header_up X-Forwarded-Proto {scheme}
-	#         header_up X-Forwarded-Host {host}
-	#         header_up X-Forwarded-Port {server_port}
-	#     }
-	# }
-
-	# reverse_proxy supabase-kong:8000
-
-	# root * /srv/inject
-	# file_server
-
-
-
-# v1.m4k.fr {
-#     handle_path /api/* {
-#     }
-#     handle_path /web/* {
-#     }
-# }
-
-# a.m4k.fr {
-# 	log {
-# 		level DEBUG
-# 	}
-
-# 	# reverse_proxy code:8443
-# }
-
-# budibase.prod.mediactil.com {
-# 	reverse_proxy budibase:80 {
-# 		header_up X-Forwarded-For {http.request.header.X-Forwarded-For}
-# 		header_up X-Real-IP {remote}
-# 		header_up Host {http.request.host}
-# 	}
-# }

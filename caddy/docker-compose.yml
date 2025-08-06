@@ -24,10 +24,9 @@ services:
     volumes:
       - caddy_data:/data
       - caddy_config:/config
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ../workspace:/srv/workspace:ro
-      # - ../workspace/my-admin/dist:/srv/my-admin:ro
-      # - ../workspace/app/dist:/srv/app:ro
+      - ./www:/srv/www:ro
 
 networks:
   default:

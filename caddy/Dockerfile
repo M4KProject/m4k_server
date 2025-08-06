@@ -7,9 +7,9 @@ RUN xcaddy build
 
 # Build with plugins
 RUN xcaddy build \
-    --with github.com/caddyserver/replace-response \
-    --with github.com/lindenlab/caddy-s3-proxy \
-    --with github.com/ueffel/caddy-imagefilter/v2/defaults
+    --with github.com/caddyserver/replace-response
+    # --with github.com/lindenlab/caddy-s3-proxy \
+    # --with github.com/ueffel/caddy-imagefilter/v2/defaults
 
 FROM caddy:2
 
