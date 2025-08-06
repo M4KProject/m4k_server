@@ -11,8 +11,12 @@ test.a.m4k.fr {
 }
 
 pb.m4k.fr {
+	handle /test/* {
+		respond "pb.m4k.fr v1.0.1 path:{path} query:{query} uri:{uri}"
+	}
+
 	# Handle API requests - proxy to PocketBase
-	handle_path /api/* {
+	handle /api/* {
 		request_body {
 			max_size 10MB
 		}
@@ -27,7 +31,7 @@ pb.m4k.fr {
 	}
 
 	# Handle PocketBase admin UI
-	handle_path /_/* {
+	handle /_/* {
 		request_body {
 			max_size 10MB
 		}
