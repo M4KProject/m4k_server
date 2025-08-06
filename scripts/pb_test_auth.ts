@@ -3,8 +3,8 @@
 import { pbAuth } from "./_helpers.ts";
 
 try {
-  await pbAuth();
-  console.log("✅ Authentication successful");
+  const result = await pbAuth();
+  console.log("✅ Authentication successful", result);
 } catch (error) {
   console.error("❌ Authentication failed:", error);
 }

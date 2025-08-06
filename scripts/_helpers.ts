@@ -28,10 +28,25 @@ export const pbFetch = async (info: RequestInit & { url: string; json?: any }) =
 };
 
 export const pbAuth = async () => {
-  // Tester différents endpoints possibles
   const adminEmail = Deno.env.get("ADMIN_EMAIL");
   const adminPassword = Deno.env.get("ADMIN_PASSWORD");
 
+//   // Essayer d'abord l'endpoint admin moderne
+//   try {
+//     const data = await pbFetch({
+//       method: "POST",
+//       url: '/api/admins/auth-with-password',
+//       json: {
+//         identity: adminEmail,
+//         password: adminPassword,
+//       },
+//     });
+//     return _token = data.token;
+//   } catch (_error) {
+//     console.warn("Tentative avec endpoint moderne échouée, essai avec l'ancien endpoint...");
+//   }
+
+  // Fallback sur l'ancien endpoint
   const data = await pbFetch({
     method: "POST",
     url: '/api/collections/_superusers/auth-with-password',
@@ -41,5 +56,6 @@ export const pbAuth = async () => {
     },
   });
 
-  return _token = data.token;
+  _token = data.token;
+  return data;
 };
