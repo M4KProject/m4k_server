@@ -34,3 +34,4 @@ ffmpeg/
 common
 
 pocketbase/go/pocketbase
+nodered/data
