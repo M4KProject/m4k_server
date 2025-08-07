@@ -3,6 +3,8 @@
 # Script pour git pull avec vérifications
 # Usage: ./git_pull.sh
 
+cd ../
+
 echo "=== Git Pull Script ==="
 echo "Date: $(date)"
 echo "Répertoire: $(pwd)"
