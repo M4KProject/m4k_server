@@ -26,7 +26,7 @@ services:
       - caddy_config:/config
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./www:/srv/www:ro
+      - ../../m4k_client/publish:/srv/www:ro
 
 networks:
   default:
