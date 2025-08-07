@@ -48,6 +48,7 @@ pb.m4k.fr {
 	# Serve static files from www folder
 	handle {
 		root * /srv/www
+		try_files {path} /index.html
 		file_server
 	}
 }
