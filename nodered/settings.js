@@ -1,16 +1,22 @@
 const bcrypt = require('bcrypt');
 
 // Environment variables
-const env = process.env;
-const PORT = env.PORT || 1880;
-const NODERED_ADMIN_EMAIL = env.NODERED_ADMIN_EMAIL;
-const NODERED_ADMIN_PASSWORD = env.NODERED_ADMIN_PASSWORD;
-const API_ADMIN_EMAIL = env.API_ADMIN_EMAIL;
-const API_ADMIN_PASSWORD = env.API_ADMIN_PASSWORD;
+const {
+    PORT,
+    NODERED_EMAIL,
+    NODERED_PASSWORD,
+    ADMIN_EMAIL,
+    ADMIN_PASSWORD,
+    S3_BUCKET,
+    S3_REGION,
+    S3_ENDPOINT,
+    S3_ACCESS_KEY,
+    S3_SECRET_KEY,
+} = process.env;
 
 module.exports = {
     // Basic configuration
-    uiPort: PORT,
+    uiPort: PORT || 1880,
     
     // Enable HTTPS if certificates are provided
     https: null,
@@ -27,8 +33,13 @@ module.exports = {
     // Function global context
     functionGlobalContext: {
         // Environment variables available in functions
-        API_ADMIN_EMAIL: API_ADMIN_EMAIL,
-        API_ADMIN_PASSWORD: API_ADMIN_PASSWORD
+        ADMIN_EMAIL,
+        ADMIN_PASSWORD,
+        S3_BUCKET,
+        S3_REGION,
+        S3_ENDPOINT,
+        S3_ACCESS_KEY,
+        S3_SECRET_KEY,
     },
     
     // Logging configuration
@@ -51,17 +62,12 @@ module.exports = {
     adminAuth: {
         type: "credentials",
         users: [{
-            username: NODERED_ADMIN_EMAIL,
-            password: bcrypt.hashSync(NODERED_ADMIN_PASSWORD, 8),
+            username: NODERED_EMAIL,
+            password: bcrypt.hashSync(NODERED_PASSWORD, 8),
             permissions: "*"
         }]
     },
     
-    // HTTP node security
-    httpNodeAuth: {
-        user: NODERED_ADMIN_EMAIL,
-        pass: bcrypt.hashSync(NODERED_ADMIN_PASSWORD, 8)
-    },
     
     // Static content
     httpStatic: '/data/public/',
