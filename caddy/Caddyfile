@@ -51,6 +51,27 @@ pb.m4k.fr {
 		try_files {path} /index.html
 		file_server
 	}
+	handle {
+      root * /srv/www
+
+      # Handle service worker and PWA files specifically
+      @sw_files path /sw.js /manifest.webmanifest
+      handle @sw_files {
+          header Cache-Control "no-cache, no-store, must-revalidate"
+          file_server
+      }
+
+      # Handle static assets
+      @static_files path_regexp \.(js|mjs|css|png|jpg|jpeg|svg|ico|woff|woff2|pdf|mp4|webm|ogg)$
+      handle @static_files {
+          header Cache-Control "public, max-age=31536000"
+          file_server
+      }
+
+      # SPA fallback for everything else
+      try_files {path} /index.html
+      file_server
+  }
 }
 
 fonts.m4k.fr {
