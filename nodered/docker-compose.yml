@@ -8,6 +8,8 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     container_name: nodered
+    env_file:
+      - ../.env
     deploy:
       resources:
         limits:
@@ -17,6 +19,8 @@ services:
       - "1880:1880"
     environment:
       - TZ=Europe/Paris
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     volumes:
       - ./data:/data
     healthcheck:
