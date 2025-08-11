@@ -10,6 +10,14 @@ test.a.m4k.fr {
 	respond "test.a.m4k.fr path:{path} query:{query} uri:{uri}"
 }
 
+nodered.a.m4k.fr {
+	reverse_proxy nodered:1880 {
+		header_up X-Forwarded-For {http.request.header.X-Forwarded-For}
+		header_up X-Real-IP {remote}
+		header_up Host {http.request.host}
+	}
+}
+
 pb.m4k.fr {
 	handle /test/* {
 		respond "pb.m4k.fr v1.0.1 path:{path} query:{query} uri:{uri}"
