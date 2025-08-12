@@ -30,7 +30,7 @@ services:
       - S3_SECRET_KEY=${S3_SECRET_KEY}
     volumes:
       - ./data:/data
-      - ./settings.js:/data/settings.js
+      - ./settings-simple.js:/data/settings.js
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://0.0.0.0:1880"]
       interval: 30s
