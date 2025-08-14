@@ -8,8 +8,6 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     container_name: nodered
-    env_file:
-      - ../.env
     deploy:
       resources:
         limits:
@@ -19,10 +17,10 @@ services:
       - "1880:1880"
     environment:
       - TZ=Europe/Paris
-      - ADMIN_EMAIL=${ADMIN_EMAIL}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - NODERED_EMAIL=${NODERED_EMAIL}
-      - NODERED_PASSWORD=${NODERED_PASSWORD}
+      - NODERED_USERNAME=${NODERED_USERNAME}
+      - NODERED_PASSWORD_HASH=${NODERED_PASSWORD_HASH}
+      - PB_ADMIN_EMAIL=${PB_ADMIN_EMAIL}
+      - PB_ADMIN_PASSWORD=${PB_ADMIN_PASSWORD}
       - S3_BUCKET=${S3_BUCKET}
       - S3_REGION=${S3_REGION}
       - S3_ENDPOINT=${S3_ENDPOINT}
@@ -30,7 +28,7 @@ services:
       - S3_SECRET_KEY=${S3_SECRET_KEY}
     volumes:
       - ./data:/data
-      - ./settings-minimal.js:/data/settings.js
+      - ./settings.js:/data/settings.js
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://0.0.0.0:1880"]
       interval: 30s

@@ -3,5 +3,5 @@
 cd ~/m4k_client
 ./publish.sh
 
-cd ~/m4k_server/caddy
-docker compose restart
+cd ~/m4k_server/scripts
+./caddy_restart.sh

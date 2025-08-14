@@ -40,6 +40,16 @@ cd /home/kaci/Documents/m4k/server
 ./create_admin.sh
 ```
 
+### Docker Setup (MacOS with Colima)
+```bash
+# Start Colima if not running
+colima start
+
+# Build and start PocketBase
+cd pocketbase
+docker compose up -d --build
+```
+
 ### Container Management
 - **PocketBase runs on port 8090**
 - Admin UI: http://localhost:8090/_/
@@ -100,7 +110,7 @@ Add routes in `serve.go` or create new bind functions in the main application.
 Create migrations in `pb_migrations/` directory.
 
 ### Environment Configuration
-- Admin credentials: `ADMIN_EMAIL` / `ADMIN_PASSWORD` in `.env`
+- Admin credentials: `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD` in `.env`
 - Production mode: `DENO_ENV=production`
 
 ## Architecture Notes
