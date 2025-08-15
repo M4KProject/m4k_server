@@ -95,14 +95,14 @@ export const pbAuth = async (node: Node, auth: PBAuth): Promise<{ pb: PocketBase
                 authCollection,
                 username,
                 passwordLength: password.length,
-            }, null, 2);
+            });
             let errorMsg = String(error);
             if (error instanceof ClientResponseError) {
-                const errorJson = JSON.stringify(error.toJSON(), null, 2);
-                node.error(`PB Auth failed ${infoMsg} : ${error.status} ${error.url} ${errorJson}`);                
+                const errorJson = JSON.stringify({ ...error.toJSON(), originalError: undefined });
+                node.error(`PB Auth failed : ${error.response?.message}\n${error.status} ${error.url}\n${infoMsg}\n${errorJson}`);                
             }
             else {
-                node.error(`PB Auth failed ${infoMsg} : ${errorMsg}`);
+                node.error(`PB Auth failed : ${errorMsg}\n${infoMsg}`);
             }
             throw error;
         }
