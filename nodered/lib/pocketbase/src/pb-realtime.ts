@@ -1,5 +1,5 @@
 import { NodeAPI, Node, NodeDef } from 'node-red';
-import { pbAuth, pbAuthInfo, requiredError } from './common.ts';
+import { pbAuth, pbAuthInfo, requiredError } from './common';
 
 export interface PBRealtimeNodeDef extends NodeDef {
     name: string;
@@ -31,7 +31,7 @@ module.exports = (RED: NodeAPI) => {
                     
                     console.debug('PB Realtime: Subscribing to collection', collection);
                     
-                    unsubscribe = await pb.collection(collection).subscribe('*', (event) => {
+                    unsubscribe = await pb.collection(collection).subscribe('*', (event: any) => {
                         console.debug('PB Realtime: Event received', event.action, collection);
                         
                         const realtimeMsg = {

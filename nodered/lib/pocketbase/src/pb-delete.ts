@@ -1,5 +1,5 @@
 import { NodeAPI, Node, NodeDef } from 'node-red';
-import { pbAutoAuth, requiredError } from './common.ts';
+import { pbAutoAuth, requiredError } from './common';
 
 export interface PBDeleteNodeDef extends NodeDef {
     name: string;
