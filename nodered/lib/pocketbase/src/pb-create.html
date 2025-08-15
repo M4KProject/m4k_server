@@ -5,7 +5,8 @@
         defaults: {
             name: { value: "" },
             collection: { value: "" },
-            expand: { value: "" }
+            expand: { value: "" },
+            json: { value: "" }
         },
         inputs: 1,
         outputs: 1,
@@ -30,6 +31,11 @@
         <label for="node-input-expand"><i class="icon-share"></i> Expand</label>
         <input type="text" id="node-input-expand" placeholder="user,category">
     </div>
+    <div class="form-row">
+        <label for="node-input-json"><i class="icon-code"></i> JSON Data</label>
+        <textarea id="node-input-json" placeholder='{"name": "value", "field": "data"}' rows="4" style="width:70%; font-family: monospace;"></textarea>
+        <div class="form-tips">Optional: Static JSON data to create. If empty, uses msg.payload</div>
+    </div>
 </script>
 
 <script type="text/html" data-help-name="pb-create">
@@ -39,14 +45,15 @@
     <ul>
         <li><strong>Collection:</strong> PocketBase collection name (can be overridden by msg.collection)</li>
         <li><strong>Expand:</strong> Default relation fields to expand in created record (can be overridden by msg.expand)</li>
+        <li><strong>JSON Data:</strong> Static JSON data to create. If provided, takes precedence over payload</li>
     </ul>
 
     <h3>Input Properties</h3>
     <dl class="message-properties">
         <dt>collection <span class="property-type">string</span></dt>
         <dd>Collection name (overrides node config)</dd>
-        <dt>data <span class="property-type">object</span></dt>
-        <dd>Record data to create (required). Falls back to msg.payload if msg.data not provided</dd>
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>Record data to create (used if no JSON data configured)</dd>
         <dt>expand <span class="property-type">string</span></dt>
         <dd>Comma-separated relation fields to expand in response</dd>
     </dl>
@@ -64,6 +71,7 @@
     <p><strong>Expand:</strong> <code>user,category</code> to expand relations in created record</p>
     
     <h3>Notes</h3>
-    <p>The record data should be provided in <code>msg.data</code> or <code>msg.payload</code>. 
+    <p>Priority order for data: 1) JSON Data field, 2) <code>msg.payload</code>. 
+    Collection can be specified in node config or <code>msg.collection</code>.
     PocketBase will automatically generate ID, created, and updated timestamps.</p>
 </script>

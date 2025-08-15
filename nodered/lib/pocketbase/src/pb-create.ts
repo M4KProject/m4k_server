@@ -5,6 +5,7 @@ export interface PBCreateNodeDef extends NodeDef {
     name: string;
     collection: string;
     expand: string;
+    json: string;
 }
 
 module.exports = (RED: NodeAPI) => {
@@ -15,9 +16,17 @@ module.exports = (RED: NodeAPI) => {
             try {
                 const pb = await pbAutoAuth(this, msg);
                 
-                const collection = def.collection || msg.collection;
-                const data = msg.data || msg.payload;
-                const expand = def.expand || msg.expand || '';
+                let data = msg.payload;
+                if (def.json && def.json.trim()) {
+                    try {
+                        data = JSON.parse(def.json);
+                    } catch (jsonError) {
+                        throw new Error(`Invalid JSON in configuration: ${jsonError}`);
+                    }
+                }
+                
+                const collection = msg.collection || def.collection || '';
+                const expand = msg.expand || def.expand || '';
 
                 if (!collection) throw requiredError('Collection');
                 if (!data) throw requiredError('Record data');

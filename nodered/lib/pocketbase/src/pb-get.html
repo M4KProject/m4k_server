@@ -29,7 +29,7 @@
     </div>
     <div class="form-row">
         <label for="node-input-recordId"><i class="icon-file"></i> Record ID</label>
-        <input type="text" id="node-input-recordId" placeholder="Record ID or leave empty for msg.id">
+        <input type="text" id="node-input-recordId" placeholder="Record ID or leave empty for msg.recordId or payload.id">
     </div>
     <div class="form-row">
         <label for="node-input-expand"><i class="icon-share"></i> Expand</label>
@@ -43,7 +43,7 @@
     <h3>Configuration</h3>
     <ul>
         <li><strong>Collection:</strong> PocketBase collection name (can be overridden by msg.collection)</li>
-        <li><strong>Record ID:</strong> Default record ID (can be overridden by msg.id)</li>
+        <li><strong>Record ID:</strong> Default record ID (can be overridden by msg.recordId or payload.id)</li>
         <li><strong>Expand:</strong> Default relation fields to expand (can be overridden by msg.expand)</li>
     </ul>
 
@@ -51,8 +51,10 @@
     <dl class="message-properties">
         <dt>collection <span class="property-type">string</span></dt>
         <dd>Collection name (overrides node config)</dd>
-        <dt>id <span class="property-type">string</span></dt>
+        <dt>recordId <span class="property-type">string</span></dt>
         <dd>Record ID to retrieve (required if not in config)</dd>
+        <dt>payload.id <span class="property-type">string</span></dt>
+        <dd>Alternative way to pass record ID via payload</dd>
         <dt>expand <span class="property-type">string</span></dt>
         <dd>Comma-separated relation fields to expand</dd>
     </dl>
@@ -67,5 +69,5 @@
 
     <h3>Examples</h3>
     <p><strong>Expand:</strong> <code>user,category</code> to expand user and category relations</p>
-    <p><strong>Record ID:</strong> Can be set in config for fixed records or passed via msg.id for dynamic retrieval</p>
+    <p><strong>Record ID:</strong> Can be set in config for fixed records or passed via msg.recordId or payload.id for dynamic retrieval</p>
 </script>
