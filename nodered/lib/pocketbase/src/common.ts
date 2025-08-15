@@ -2,7 +2,7 @@ import { Node } from 'node-red';
 import PocketBase, { ClientResponseError } from 'pocketbase';
 
 export interface PBAuth {
-    apiUrl: string;
+    url: string;
     authCollection: string;
     username: string;
     password: string;
@@ -16,7 +16,7 @@ export const isString = (a: unknown): boolean => typeof a === 'string';
 export const isPBAuth = (a: unknown): boolean => (
     isObject(a) &&
     isString((a as PBAuth).token) &&
-    isString((a as PBAuth).apiUrl) &&
+    isString((a as PBAuth).url) &&
     isString((a as PBAuth).authCollection) &&
     isString((a as PBAuth).username) &&
     isString((a as PBAuth).password)
@@ -24,7 +24,7 @@ export const isPBAuth = (a: unknown): boolean => (
 
 export const isPBAuthEquals = (a: PBAuth, b: PBAuth): boolean => (
     a && b &&
-    a.apiUrl === b.apiUrl &&
+    a.url === b.url &&
     a.authCollection === b.authCollection &&
     a.username === b.username &&
     a.password === b.password
@@ -42,13 +42,13 @@ export const pbAuthInfo = (node: Node, msgAuth: Partial<PBAuth> = {}): PBAuth =>
     }
 
     const env = process.env;
-    const apiUrl = msgAuth.apiUrl || env.PB_API_URL || '';
+    const url = msgAuth.url || env.PB_API_URL || '';
     const authCollection = msgAuth.authCollection || env.PB_AUTH_COLLECTION || '_superusers';
     const username = msgAuth.username || env.PB_USERNAME || 'admin';
     const password = msgAuth.password || env.PB_PASSWORD || '';
     const token = '';
 
-    const newAuth: PBAuth = { apiUrl, authCollection, username, password, token };
+    const newAuth: PBAuth = { url, authCollection, username, password, token };
     ctx.flow.set('pbAuth', newAuth);
 
     return newAuth;
@@ -60,16 +60,16 @@ export const requiredError = (name: string) => {
 }
 
 export const pbAuth = async (node: Node, auth: PBAuth): Promise<{ pb: PocketBase, auth: PBAuth }> => {
-    const { apiUrl, authCollection, username, password } = auth;
+    const { url, authCollection, username, password } = auth;
     let { token } = auth;
 
-    if (!apiUrl) throw requiredError('PB Api Url');
+    if (!url) throw requiredError('PB Url');
     if (!authCollection) throw requiredError('PB Auth Collection');
     if (!username) throw requiredError('PB Username');
     if (!password) throw requiredError('PB Password');
 
     const ctx = node.context();
-    const pb = new PocketBase(apiUrl);
+    const pb = new PocketBase(url);
 
     if (token) {
         pb.authStore.save(token);
@@ -83,7 +83,7 @@ export const pbAuth = async (node: Node, auth: PBAuth): Promise<{ pb: PocketBase
     }
 
     if (!token) {
-        node.debug(`PB connecting... ${apiUrl} ${authCollection} ${username}`);
+        node.debug(`PB connecting... "${username}"`);
         try {
             const authData = await pb.collection(authCollection).authWithPassword(username, password);
             token = authData.token;
@@ -91,16 +91,19 @@ export const pbAuth = async (node: Node, auth: PBAuth): Promise<{ pb: PocketBase
             node.debug(`PB connected`);
         } catch (error) {
             const infoMsg = JSON.stringify({
-                apiUrl,
+                url,
                 authCollection,
                 username,
                 passwordLength: password.length,
             }, null, 2);
             let errorMsg = String(error);
             if (error instanceof ClientResponseError) {
-                errorMsg = JSON.stringify(error.toJSON(), null, 2);
+                const errorJson = JSON.stringify(error.toJSON(), null, 2);
+                node.error(`PB Auth failed ${infoMsg} : ${error.status} ${error.url} ${errorJson}`);                
             }
-            node.error(`PB Auth failed ${infoMsg} : ${errorMsg}`);
+            else {
+                node.error(`PB Auth failed ${infoMsg} : ${errorMsg}`);
+            }
             throw error;
         }
     }
