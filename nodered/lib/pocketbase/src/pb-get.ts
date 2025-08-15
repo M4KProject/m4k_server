@@ -18,7 +18,7 @@ module.exports = (RED: NodeAPI) => {
 
                 const payload = msg.payload;
                 
-                const collection = def.collection || payload.collection;
+                const collection = def.collection || payload.collection || payload.collectionName;
                 const id = def.recordId || payload.id;
                 const expand = def.expand || payload.expand || '';
 
