@@ -1,39 +1,23 @@
 import { NodeAPI, Node, NodeDef } from 'node-red';
-import PocketBase from 'pocketbase';
+import { pbAuth, pbAuthInfo, PBAuth } from './common';
 
-interface PBAuthNodeConfig extends NodeDef {
+export interface PBAuthNodeDef extends NodeDef, PBAuth {
     name: string;
-    apiUrl: string;
-    username: string;
-    password: string;
 }
 
-module.exports = function(RED: NodeAPI) {
-    function PBAuthNode(this: Node, config: PBAuthNodeConfig) {
-        RED.nodes.createNode(this, config);
-        const node = this;
-        
-        node.on('input', async function(msg: any) {
+module.exports = (RED: NodeAPI) => {
+    const PBAuthNode = function(this: Node, def: PBAuthNodeDef) {
+        RED.nodes.createNode(this, def);
+
+        this.on('input', async (msg: any) => {
             try {
-                const apiUrl = config.apiUrl || process.env.PB_API_URL;
-                const username = config.username || process.env.PB_ADMIN_USERNAME;
-                const password = config.password || process.env.PB_ADMIN_PASSWORD;
-                
-                if (!apiUrl || !username || !password) {
-                    node.error("Missing API URL, username or password", msg);
-                    return;
-                }
-                
-                const pb = new PocketBase(apiUrl);
-                const authData = await pb.collection('_superusers').authWithPassword(username, password);
-                
-                msg.payload = authData;
+                const info = pbAuthInfo(this, { ...def, ...msg.pbAuth, ...msg.payload });
+                const { pb, auth } = await pbAuth(this, info);
+                msg.pbAuth = auth;
                 msg.pb = pb;
-                
-                node.send(msg);
-                
+                this.send(msg);
             } catch (error) {
-                node.error(`Auth failed: ${error}`, msg);
+                this.error(`PB Auth failed: ${error}`, msg);
             }
         });
     }

@@ -2,7 +2,7 @@
   "name": "node-red-contrib-pocketbase",
   "version": "1.0.0",
   "description": "PocketBase node for Node-RED",
-  "main": "dist/pocketbase.js",
+  "main": "dist/pb-auth.js",
   "keywords": [
     "node-red",
     "pocketbase",
@@ -13,7 +13,7 @@
     "typescript": "^5.0.0"
   },
   "scripts": {
-    "build": "node esbuild.config.js && cp *.html dist/",
+    "build": "node esbuild.config.js",
     "dev": "npm-run-all --parallel lint:watch build:watch",
     "lint": "tsc --noEmit",
     "lint:watch": "tsc --noEmit --watch",
@@ -23,7 +23,12 @@
   "node-red": {
     "nodes": {
       "pb-auth": "dist/pb-auth.js",
-      "pb-crud": "dist/pb-crud.js"
+      "pb-list": "dist/pb-list.js",
+      "pb-get": "dist/pb-get.js",
+      "pb-create": "dist/pb-create.js",
+      "pb-update": "dist/pb-update.js",
+      "pb-delete": "dist/pb-delete.js",
+      "pb-realtime": "dist/pb-realtime.js"
     }
   },
   "devDependencies": {

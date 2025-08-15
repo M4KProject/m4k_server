@@ -1,7 +1,13 @@
 const { build } = require('esbuild');
+const { readdirSync, copyFileSync } = require('node:fs');
+const { join } = require('node:path');
+
+const list = readdirSync('src');
+
+const templates = list.filter(f => f.endsWith('.html'));
 
 const config = {
-  entryPoints: ['src/pb-auth.ts', 'src/pb-crud.ts'],
+  entryPoints: templates.map(f => join('src', f.replace('.html', '.ts'))),
   bundle: true,
   platform: 'node',
   target: 'node16',
@@ -11,6 +17,10 @@ const config = {
   sourcemap: true,
   minify: false
 };
+
+for (const f of templates) {
+  copyFileSync(join('src', f), join('dist', f));
+}
 
 // Build
 build(config).catch(() => process.exit(1));

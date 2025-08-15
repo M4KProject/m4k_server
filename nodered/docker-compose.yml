@@ -30,7 +30,7 @@ services:
     volumes:
       - ./data:/data
       - ./settings.js:/data/settings.js
-      - ./lib/pocketbase:/usr/src/node-red/node_modules/node-red-contrib-pb-auth
+      - ./lib/pocketbase:/usr/src/node-red/node_modules/node-red-contrib-pocketbase
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://0.0.0.0:1880"]
       interval: 30s

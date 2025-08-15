@@ -1,0 +1,68 @@
+<script type="text/javascript">
+    RED.nodes.registerType('pb-create', {
+        category: 'pocketbase',
+        color: '#a6bbcf',
+        defaults: {
+            name: { value: "" },
+            collection: { value: "" },
+            expand: { value: "" }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "plus.png",
+        label: function() {
+            return this.name || `PB Create ${this.collection || ''}`;
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="pb-create">
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-collection"><i class="icon-table"></i> Collection</label>
+        <input type="text" id="node-input-collection" placeholder="Collection name or leave empty for msg.collection">
+    </div>
+    <div class="form-row">
+        <label for="node-input-expand"><i class="icon-share"></i> Expand</label>
+        <input type="text" id="node-input-expand" placeholder="user,category">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="pb-create">
+    <p>Create a new record in a PocketBase collection.</p>
+    
+    <h3>Configuration</h3>
+    <ul>
+        <li><strong>Collection:</strong> PocketBase collection name (can be overridden by msg.collection)</li>
+        <li><strong>Expand:</strong> Default relation fields to expand in created record (can be overridden by msg.expand)</li>
+    </ul>
+
+    <h3>Input Properties</h3>
+    <dl class="message-properties">
+        <dt>collection <span class="property-type">string</span></dt>
+        <dd>Collection name (overrides node config)</dd>
+        <dt>data <span class="property-type">object</span></dt>
+        <dd>Record data to create (required). Falls back to msg.payload if msg.data not provided</dd>
+        <dt>expand <span class="property-type">string</span></dt>
+        <dd>Comma-separated relation fields to expand in response</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>Created record data with generated ID and timestamps</dd>
+        <dt>pb <span class="property-type">PocketBase</span></dt>
+        <dd>Authenticated PocketBase client for chaining</dd>
+    </dl>
+
+    <h3>Examples</h3>
+    <p><strong>Data:</strong> <code>{ "name": "John", "email": "john@example.com" }</code></p>
+    <p><strong>Expand:</strong> <code>user,category</code> to expand relations in created record</p>
+    
+    <h3>Notes</h3>
+    <p>The record data should be provided in <code>msg.data</code> or <code>msg.payload</code>. 
+    PocketBase will automatically generate ID, created, and updated timestamps.</p>
+</script>

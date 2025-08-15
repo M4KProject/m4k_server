@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-deno run --allow-all ./_make.ts
+node _make.js
 
 cd lib/pocketbase
 npm install

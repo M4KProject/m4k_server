@@ -1,0 +1,88 @@
+<script type="text/javascript">
+    RED.nodes.registerType('pb-list', {
+        category: 'pocketbase',
+        color: '#a6bbcf',
+        defaults: {
+            name: { value: "" },
+            collection: { value: "" },
+            page: { value: 1, validate: RED.validators.number() },
+            perPage: { value: 50, validate: RED.validators.number() },
+            filter: { value: "" },
+            sort: { value: "" }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "list.png",
+        label: function() {
+            return this.name || `PB List ${this.collection || ''}`;
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="pb-list">
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-collection"><i class="icon-table"></i> Collection</label>
+        <input type="text" id="node-input-collection" placeholder="Collection name or leave empty for msg.collection">
+    </div>
+    <div class="form-row">
+        <label for="node-input-page"><i class="icon-bookmark"></i> Page</label>
+        <input type="number" id="node-input-page" placeholder="1" min="1">
+    </div>
+    <div class="form-row">
+        <label for="node-input-perPage"><i class="icon-list"></i> Per Page</label>
+        <input type="number" id="node-input-perPage" placeholder="50" min="1" max="500">
+    </div>
+    <div class="form-row">
+        <label for="node-input-filter"><i class="icon-filter"></i> Filter</label>
+        <input type="text" id="node-input-filter" placeholder="status = 'active' AND created > '2023-01-01'">
+    </div>
+    <div class="form-row">
+        <label for="node-input-sort"><i class="icon-sort"></i> Sort</label>
+        <input type="text" id="node-input-sort" placeholder="-created,+name">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="pb-list">
+    <p>Retrieve paginated list of records from a PocketBase collection.</p>
+    
+    <h3>Configuration</h3>
+    <ul>
+        <li><strong>Collection:</strong> PocketBase collection name (can be overridden by msg.collection)</li>
+        <li><strong>Page:</strong> Default page number (can be overridden by msg.page)</li>
+        <li><strong>Per Page:</strong> Default records per page (can be overridden by msg.perPage)</li>
+        <li><strong>Filter:</strong> Default filter expression (can be overridden by msg.filter)</li>
+        <li><strong>Sort:</strong> Default sort expression (can be overridden by msg.sort)</li>
+    </ul>
+
+    <h3>Input Properties</h3>
+    <dl class="message-properties">
+        <dt>collection <span class="property-type">string</span></dt>
+        <dd>Collection name (overrides node config)</dd>
+        <dt>page <span class="property-type">number</span></dt>
+        <dd>Page number to retrieve (default: 1)</dd>
+        <dt>perPage <span class="property-type">number</span></dt>
+        <dd>Records per page (default: 50, max: 500)</dd>
+        <dt>filter <span class="property-type">string</span></dt>
+        <dd>Filter expression (PocketBase syntax)</dd>
+        <dt>sort <span class="property-type">string</span></dt>
+        <dd>Sort expression (e.g., "-created,+name")</dd>
+        <dt>expand <span class="property-type">string</span></dt>
+        <dd>Relation fields to expand</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>List result with items, page, perPage, totalItems, totalPages</dd>
+        <dt>pb <span class="property-type">PocketBase</span></dt>
+        <dd>Authenticated PocketBase client for chaining</dd>
+    </dl>
+
+    <h3>Examples</h3>
+    <p><strong>Filter:</strong> <code>status = 'active' AND created > '2023-01-01'</code></p>
+    <p><strong>Sort:</strong> <code>-created,+name</code> (descending created, ascending name)</p>
+</script>
