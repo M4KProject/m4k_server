@@ -8,7 +8,8 @@
             page: { value: 1, validate: RED.validators.number() },
             perPage: { value: 50, validate: RED.validators.number() },
             filter: { value: "" },
-            sort: { value: "" }
+            sort: { value: "" },
+            mode: { value: "page" }
         },
         inputs: 1,
         outputs: 1,
@@ -45,6 +46,14 @@
         <label for="node-input-sort"><i class="icon-sort"></i> Sort</label>
         <input type="text" id="node-input-sort" placeholder="-created,+name">
     </div>
+    <div class="form-row">
+        <label for="node-input-mode"><i class="icon-flow-branch"></i> Output Mode</label>
+        <select id="node-input-mode" style="width:70%">
+            <option value="page">Page (complete result object)</option>
+            <option value="items">Items (array of records only)</option>
+            <option value="split">Split (one message per record)</option>
+        </select>
+    </div>
 </script>
 
 <script type="text/html" data-help-name="pb-list">
@@ -57,6 +66,13 @@
         <li><strong>Per Page:</strong> Default records per page (can be overridden by msg.perPage)</li>
         <li><strong>Filter:</strong> Default filter expression (can be overridden by msg.filter)</li>
         <li><strong>Sort:</strong> Default sort expression (can be overridden by msg.sort)</li>
+        <li><strong>Output Mode:</strong> How to send the results:
+            <ul>
+                <li><em>Page:</em> Complete result object with items, page info, etc.</li>
+                <li><em>Items:</em> Only the array of records</li>
+                <li><em>Split:</em> Each record sent as a separate message</li>
+            </ul>
+        </li>
     </ul>
 
     <h3>Input Properties</h3>
@@ -73,12 +89,20 @@
         <dd>Sort expression (e.g., "-created,+name")</dd>
         <dt>expand <span class="property-type">string</span></dt>
         <dd>Relation fields to expand</dd>
+        <dt>mode <span class="property-type">string</span></dt>
+        <dd>Output mode: "page", "items", or "split"</dd>
     </dl>
 
     <h3>Outputs</h3>
     <dl class="message-properties">
-        <dt>payload <span class="property-type">object</span></dt>
-        <dd>List result with items, page, perPage, totalItems, totalPages</dd>
+        <dt>payload <span class="property-type">object|array|object</span></dt>
+        <dd>Depends on mode:
+            <ul>
+                <li><em>page:</em> Complete result object with items, page, perPage, totalItems, totalPages</li>
+                <li><em>items:</em> Array of records only</li>
+                <li><em>split:</em> Individual record object (one message per record)</li>
+            </ul>
+        </dd>
         <dt>pb <span class="property-type">PocketBase</span></dt>
         <dd>Authenticated PocketBase client for chaining</dd>
     </dl>

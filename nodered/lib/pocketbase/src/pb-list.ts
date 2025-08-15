@@ -8,6 +8,7 @@ export interface PBListNodeDef extends NodeDef {
     perPage: number;
     filter: string;
     sort: string;
+    mode: 'page' | 'items' | 'split';
 }
 
 module.exports = (RED: NodeAPI) => {
@@ -23,10 +24,11 @@ module.exports = (RED: NodeAPI) => {
                 const perPage = def.perPage || msg.perPage || 50;
                 const filter = def.filter || msg.filter || '';
                 const sort = def.sort || msg.sort || '';
+                const mode = def.mode || msg.mode || 'page';
 
                 if (!collection) throw requiredError('Collection');
 
-                this.debug(`PB List: ${collection} page=${page} perPage=${perPage} filter='${filter}' sort='${sort}'`);
+                this.debug(`PB List: ${collection} page=${page} perPage=${perPage} filter='${filter}' sort='${sort}' mode=${mode}`);
 
                 const result = await pb.collection(collection).getList(page, perPage, {
                     filter,
@@ -34,9 +36,20 @@ module.exports = (RED: NodeAPI) => {
                     expand: msg.expand || ''
                 });
 
-                msg.payload = result;
                 msg.pb = pb;
-                this.send(msg);
+                if (mode === 'page') {
+                    msg.payload = result;
+                    this.send(msg);
+                } else if (mode === 'items') {
+                    msg.payload = result.items;
+                    this.send(msg);
+                } else if (mode === 'split') {
+                    result.items.forEach((item) => {
+                        const newMsg = RED.util.cloneMessage(msg);
+                        newMsg.payload = item;
+                        this.send(newMsg);
+                    });
+                }
 
             } catch (error) {
                 this.error(`PB List failed: ${error}`, msg);
