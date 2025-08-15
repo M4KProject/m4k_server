@@ -15,10 +15,12 @@ module.exports = (RED: NodeAPI) => {
         this.on('input', async (msg: any) => {
             try {
                 const pb = await pbAutoAuth(this, msg);
+
+                const payload = msg.payload;
                 
-                const collection = def.collection || msg.collection;
-                const id = def.recordId || msg.id;
-                const expand = def.expand || msg.expand || '';
+                const collection = def.collection || payload.collection;
+                const id = def.recordId || payload.id;
+                const expand = def.expand || payload.expand || '';
 
                 if (!collection) throw requiredError('Collection');
                 if (!id) throw requiredError('Record ID');

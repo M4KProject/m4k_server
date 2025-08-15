@@ -9,17 +9,18 @@ export interface PBAuth {
     token: string;
 }
 
-export const isArray = (a: unknown): boolean => Array.isArray(a);
-export const isObject = (a: unknown): boolean => typeof a === 'object';
-export const isString = (a: unknown): boolean => typeof a === 'string';
+export const isArray = (v: any): v is any[] => Array.isArray(v);
+export const isObject = <T extends {}>(v: unknown): v is T => typeof v === "object" && v !== null;
+export const isString = (v: any): v is string => typeof v === 'string';
+export const isNumber = (v: any): v is number => typeof v === 'number';
 
-export const isPBAuth = (a: unknown): boolean => (
-    isObject(a) &&
-    isString((a as PBAuth).token) &&
-    isString((a as PBAuth).url) &&
-    isString((a as PBAuth).authCollection) &&
-    isString((a as PBAuth).username) &&
-    isString((a as PBAuth).password)
+export const isPBAuth = (v: any): v is PBAuth => (
+    isObject<PBAuth>(v) &&
+    isString(v.token) &&
+    isString(v.url) &&
+    isString(v.authCollection) &&
+    isString(v.username) &&
+    isString(v.password)
 );
 
 export const isPBAuthEquals = (a: PBAuth, b: PBAuth): boolean => (
