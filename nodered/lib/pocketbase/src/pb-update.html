@@ -6,7 +6,8 @@
             name: { value: "" },
             collection: { value: "" },
             recordId: { value: "" },
-            expand: { value: "" }
+            expand: { value: "" },
+            json: { value: "" }
         },
         inputs: 1,
         outputs: 1,
@@ -29,7 +30,7 @@
     </div>
     <div class="form-row">
         <label for="node-input-recordId"><i class="icon-file"></i> Record ID</label>
-        <input type="text" id="node-input-recordId" placeholder="Record ID or leave empty for msg.id">
+        <input type="text" id="node-input-recordId" placeholder="Record ID or leave empty for msg.recordId">
     </div>
     <div class="form-row">
         <label for="node-input-expand"><i class="icon-share"></i> Expand</label>
@@ -38,7 +39,7 @@
     <div class="form-row">
         <label for="node-input-json"><i class="icon-code"></i> JSON Data</label>
         <textarea id="node-input-json" placeholder='{"name": "value", "field": "data"}' rows="4" style="width:70%; font-family: monospace;"></textarea>
-        <div class="form-tips">Optional: Static JSON data to create. If empty, uses msg.payload</div>
+        <div class="form-tips">Optional: Static JSON data to update. If empty, uses msg.payload</div>
     </div>
 </script>
 
@@ -48,19 +49,19 @@
     <h3>Configuration</h3>
     <ul>
         <li><strong>Collection:</strong> PocketBase collection name (can be overridden by msg.collection)</li>
-        <li><strong>Record ID:</strong> Default record ID (can be overridden by msg.id)</li>
+        <li><strong>Record ID:</strong> Default record ID (can be overridden by msg.recordId)</li>
         <li><strong>Expand:</strong> Default relation fields to expand in updated record (can be overridden by msg.expand)</li>
-        <li><strong>JSON Data:</strong> Static JSON data to create. If provided, takes precedence over payload</li>
+        <li><strong>JSON Data:</strong> Static JSON data to update. If provided, takes precedence over payload</li>
     </ul>
 
     <h3>Input Properties</h3>
     <dl class="message-properties">
         <dt>collection <span class="property-type">string</span></dt>
         <dd>Collection name (overrides node config)</dd>
-        <dt>id <span class="property-type">string</span></dt>
+        <dt>recordId <span class="property-type">string</span></dt>
         <dd>Record ID to update (required if not in config)</dd>
-        <dt>data <span class="property-type">object</span></dt>
-        <dd>Record data to update (required). Falls back to msg.payload if msg.data not provided</dd>
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>Record data to update (used if no JSON data configured)</dd>
         <dt>expand <span class="property-type">string</span></dt>
         <dd>Comma-separated relation fields to expand in response</dd>
     </dl>
@@ -78,6 +79,7 @@
     <p><strong>Expand:</strong> <code>user,category</code> to expand relations in updated record</p>
     
     <h3>Notes</h3>
-    <p>Only the fields provided in the data will be updated. Other fields remain unchanged.
+    <p>Priority order for data: 1) JSON Data field, 2) <code>msg.payload</code>. 
+    Only the fields provided will be updated. Other fields remain unchanged.
     PocketBase will automatically update the 'updated' timestamp.</p>
 </script>

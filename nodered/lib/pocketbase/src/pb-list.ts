@@ -28,7 +28,7 @@ module.exports = (RED: NodeAPI) => {
 
                 if (!isString(collection)) throw propError('Collection');
                 if (!isNumber(page)) throw propError('Page');
-                if (!isNumber(collection)) throw propError('Per Page');
+                if (!isNumber(perPage)) throw propError('Per Page');
                 if (!isString(filter)) throw propError('Filter');
                 if (!isString(sort)) throw propError('Sort');
                 if (!isString(mode)) throw propError('Mode');

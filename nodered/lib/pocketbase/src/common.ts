@@ -56,7 +56,7 @@ export const pbAuthInfo = (node: Node, msgAuth: Partial<PBAuth> = {}): PBAuth =>
 }
 
 export const propError = (name: string) => {
-    const msg = `Value error property "${name}"`;
+    const msg = `The property "${name}" is invalid`;
     return new Error(msg);
 }
 
