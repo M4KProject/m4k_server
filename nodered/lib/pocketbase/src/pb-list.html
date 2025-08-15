@@ -9,6 +9,7 @@
             perPage: { value: 50, validate: RED.validators.number() },
             filter: { value: "" },
             sort: { value: "" },
+            expand: { value: "" },
             mode: { value: "page" }
         },
         inputs: 1,
@@ -47,11 +48,16 @@
         <input type="text" id="node-input-sort" placeholder="-created,+name">
     </div>
     <div class="form-row">
+        <label for="node-input-expand"><i class="icon-share"></i> Expand</label>
+        <input type="text" id="node-input-expand" placeholder="user,category">
+    </div>
+    <div class="form-row">
         <label for="node-input-mode"><i class="icon-flow-branch"></i> Output Mode</label>
         <select id="node-input-mode" style="width:70%">
             <option value="page">Page (complete result object)</option>
             <option value="items">Items (array of records only)</option>
             <option value="split">Split (one message per record)</option>
+            <option value="first">First (first matching record only)</option>
         </select>
     </div>
 </script>
@@ -66,11 +72,13 @@
         <li><strong>Per Page:</strong> Default records per page (can be overridden by msg.perPage)</li>
         <li><strong>Filter:</strong> Default filter expression (can be overridden by msg.filter)</li>
         <li><strong>Sort:</strong> Default sort expression (can be overridden by msg.sort)</li>
+        <li><strong>Expand:</strong> Default relation fields to expand (can be overridden by msg.expand)</li>
         <li><strong>Output Mode:</strong> How to send the results:
             <ul>
                 <li><em>Page:</em> Complete result object with items, page info, etc.</li>
                 <li><em>Items:</em> Only the array of records</li>
                 <li><em>Split:</em> Each record sent as a separate message</li>
+                <li><em>First:</em> Only the first matching record (ignores page/perPage)</li>
             </ul>
         </li>
     </ul>
@@ -90,17 +98,18 @@
         <dt>expand <span class="property-type">string</span></dt>
         <dd>Relation fields to expand</dd>
         <dt>mode <span class="property-type">string</span></dt>
-        <dd>Output mode: "page", "items", or "split"</dd>
+        <dd>Output mode: "page", "items", "split", or "first"</dd>
     </dl>
 
     <h3>Outputs</h3>
     <dl class="message-properties">
-        <dt>payload <span class="property-type">object|array|object</span></dt>
+        <dt>payload <span class="property-type">object|array|object|null</span></dt>
         <dd>Depends on mode:
             <ul>
                 <li><em>page:</em> Complete result object with items, page, perPage, totalItems, totalPages</li>
                 <li><em>items:</em> Array of records only</li>
                 <li><em>split:</em> Individual record object (one message per record)</li>
+                <li><em>first:</em> First matching record object, or null if no match</li>
             </ul>
         </dd>
         <dt>pb <span class="property-type">PocketBase</span></dt>
