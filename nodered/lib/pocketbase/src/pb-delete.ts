@@ -1,5 +1,5 @@
 import { NodeAPI, Node, NodeDef } from 'node-red';
-import { pbAutoAuth, requiredError } from './common';
+import { isString, pbAutoAuth, propError } from './common';
 
 export interface PBDeleteNodeDef extends NodeDef {
     name: string;
@@ -16,37 +16,17 @@ module.exports = (RED: NodeAPI) => {
             try {
                 const pb = await pbAutoAuth(this, msg);
                 
+                const p = msg.payload || {};
                 const collection = def.collection || msg.collection;
-                const id = def.recordId || msg.id;
-                const confirm = def.confirm || msg.confirm || false;
+                const id = def.recordId || msg.recordId || p.id;
 
-                if (!collection) throw requiredError('Collection');
-                if (!id) throw requiredError('Record ID');
-
-                if (confirm && !msg.confirmed) {
-                    this.warn(`Delete operation requires confirmation. Set msg.confirmed = true to proceed.`);
-                    
-                    msg.payload = {
-                        action: 'delete_confirmation_required',
-                        collection,
-                        id,
-                        message: `Delete record ${id} from ${collection}?`
-                    };
-                    this.send(msg);
-                    return;
-                }
+                if (!isString(collection)) throw propError('Collection');
+                if (!id) throw propError('Record ID');
 
                 this.debug(`PB Delete: ${collection}/${id}`);
 
-                const result = await pb.collection(collection).delete(id);
-
-                msg.payload = {
-                    action: 'deleted',
-                    collection,
-                    id,
-                    success: result,
-                    timestamp: new Date().toISOString()
-                };
+                const isDeleted = await pb.collection(collection).delete(id);
+                msg.payload = isDeleted;
                 msg.pb = pb;
                 this.send(msg);
 

@@ -55,8 +55,8 @@ export const pbAuthInfo = (node: Node, msgAuth: Partial<PBAuth> = {}): PBAuth =>
     return newAuth;
 }
 
-export const requiredError = (name: string) => {
-    const msg = `${name} is required`;
+export const propError = (name: string) => {
+    const msg = `Value error property "${name}"`;
     return new Error(msg);
 }
 
@@ -64,10 +64,10 @@ export const pbAuth = async (node: Node, auth: PBAuth): Promise<{ pb: PocketBase
     const { url, authCollection, username, password } = auth;
     let { token } = auth;
 
-    if (!url) throw requiredError('PB Url');
-    if (!authCollection) throw requiredError('PB Auth Collection');
-    if (!username) throw requiredError('PB Username');
-    if (!password) throw requiredError('PB Password');
+    if (!isString(url)) throw propError('PB Url');
+    if (!isString(authCollection)) throw propError('PB Auth Collection');
+    if (!isString(username)) throw propError('PB Username');
+    if (!isString(password)) throw propError('PB Password');
 
     const ctx = node.context();
     const pb = new PocketBase(url);

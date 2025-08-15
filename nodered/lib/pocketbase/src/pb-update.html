@@ -35,6 +35,11 @@
         <label for="node-input-expand"><i class="icon-share"></i> Expand</label>
         <input type="text" id="node-input-expand" placeholder="user,category">
     </div>
+    <div class="form-row">
+        <label for="node-input-json"><i class="icon-code"></i> JSON Data</label>
+        <textarea id="node-input-json" placeholder='{"name": "value", "field": "data"}' rows="4" style="width:70%; font-family: monospace;"></textarea>
+        <div class="form-tips">Optional: Static JSON data to create. If empty, uses msg.payload</div>
+    </div>
 </script>
 
 <script type="text/html" data-help-name="pb-update">
@@ -45,6 +50,7 @@
         <li><strong>Collection:</strong> PocketBase collection name (can be overridden by msg.collection)</li>
         <li><strong>Record ID:</strong> Default record ID (can be overridden by msg.id)</li>
         <li><strong>Expand:</strong> Default relation fields to expand in updated record (can be overridden by msg.expand)</li>
+        <li><strong>JSON Data:</strong> Static JSON data to create. If provided, takes precedence over payload</li>
     </ul>
 
     <h3>Input Properties</h3>

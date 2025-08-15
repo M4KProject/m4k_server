@@ -1,5 +1,5 @@
 import { NodeAPI, Node, NodeDef } from 'node-red';
-import { pbAutoAuth, requiredError } from './common';
+import { isString, pbAutoAuth, propError } from './common';
 
 export interface PBGetNodeDef extends NodeDef {
     name: string;
@@ -17,12 +17,13 @@ module.exports = (RED: NodeAPI) => {
                 const pb = await pbAutoAuth(this, msg);
 
                 const p = msg.payload || {};
-                const collection = msg.collection || def.collection || p.collectionName;
-                const id = msg.recordId || def.recordId || p.id;
-                const expand = msg.expand || def.expand || '';
+                const collection = def.collection || msg.collection || p.collectionName;
+                const id = def.recordId || msg.recordId || p.id;
+                const expand = def.expand || msg.expand || '';
 
-                if (!collection) throw requiredError('Collection');
-                if (!id) throw requiredError('Record ID');
+                if (!isString(collection)) throw propError('Collection');
+                if (!id) throw propError('Record ID');
+                if (!isString(expand)) throw propError('Expand');
 
                 this.debug(`PB Get: ${collection}/${id} expand='${expand}'`);
 

@@ -1,11 +1,12 @@
 import { NodeAPI, Node, NodeDef } from 'node-red';
-import { pbAutoAuth, requiredError } from './common';
+import { isObject, isString, pbAutoAuth, propError } from './common';
 
 export interface PBUpdateNodeDef extends NodeDef {
     name: string;
     collection: string;
     recordId: string;
     expand: string;
+    json: string;
 }
 
 module.exports = (RED: NodeAPI) => {
@@ -17,13 +18,22 @@ module.exports = (RED: NodeAPI) => {
                 const pb = await pbAutoAuth(this, msg);
                 
                 const collection = def.collection || msg.collection;
-                const id = def.recordId || msg.id;
-                const data = msg.data || msg.payload;
+                const id = def.recordId || msg.recordId;
                 const expand = def.expand || msg.expand || '';
 
-                if (!collection) throw requiredError('Collection');
-                if (!id) throw requiredError('Record ID');
-                if (!data) throw requiredError('Record data');
+                let data = msg.payload;
+                if (def.json && def.json.trim()) {
+                    try {
+                        data = JSON.parse(def.json);
+                    } catch (jsonError) {
+                        throw new Error(`Invalid JSON in configuration: ${jsonError}`);
+                    }
+                }
+
+                if (!isString(collection)) throw propError('Collection');
+                if (!isString(id)) throw propError('Record ID');
+                if (!isString(expand)) throw propError('Expand');
+                if (!isObject(data)) throw propError('Record data');
 
                 this.debug(`PB Update: ${collection}/${id} expand='${expand}'`);
 

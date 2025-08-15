@@ -1,5 +1,5 @@
 import { NodeAPI, Node, NodeDef } from 'node-red';
-import { pbAuth, pbAuthInfo, requiredError } from './common';
+import { pbAuth, pbAuthInfo, propError } from './common';
 
 export interface PBRealtimeNodeDef extends NodeDef {
     name: string;
@@ -20,7 +20,7 @@ module.exports = (RED: NodeAPI) => {
                 const collection = def.collection || msg.collection;
                 const action = def.action || msg.action || 'subscribe';
 
-                if (!collection) throw requiredError('Collection');
+                if (!collection) throw propError('Collection');
                 
                 if (action === 'subscribe') {
                     if (unsubscribe) {

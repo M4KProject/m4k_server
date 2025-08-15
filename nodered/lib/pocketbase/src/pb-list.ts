@@ -1,5 +1,5 @@
 import { NodeAPI, Node, NodeDef } from 'node-red';
-import { pbAutoAuth, requiredError } from './common';
+import { isNumber, isString, pbAutoAuth, propError } from './common';
 
 export interface PBListNodeDef extends NodeDef {
     name: string;
@@ -19,15 +19,19 @@ module.exports = (RED: NodeAPI) => {
             try {
                 const pb = await pbAutoAuth(this, msg);
 
-                
-                const collection = msg.collection || def.collection;
+                const collection = def.collection || msg.collection;
                 const page = def.page || msg.page || 1;
                 const perPage = def.perPage || msg.perPage || 50;
                 const filter = def.filter || msg.filter || '';
                 const sort = def.sort || msg.sort || '';
                 const mode = def.mode || msg.mode || 'page';
 
-                if (!collection) throw requiredError('Collection');
+                if (!isString(collection)) throw propError('Collection');
+                if (!isNumber(page)) throw propError('Page');
+                if (!isNumber(collection)) throw propError('Per Page');
+                if (!isString(filter)) throw propError('Filter');
+                if (!isString(sort)) throw propError('Sort');
+                if (!isString(mode)) throw propError('Mode');
 
                 this.debug(`PB List: ${collection} page=${page} perPage=${perPage} filter='${filter}' sort='${sort}' mode=${mode}`);
 

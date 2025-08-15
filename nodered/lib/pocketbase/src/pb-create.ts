@@ -1,5 +1,5 @@
 import { NodeAPI, Node, NodeDef } from 'node-red';
-import { pbAutoAuth, requiredError } from './common';
+import { isObject, isString, pbAutoAuth, propError } from './common';
 
 export interface PBCreateNodeDef extends NodeDef {
     name: string;
@@ -25,11 +25,11 @@ module.exports = (RED: NodeAPI) => {
                     }
                 }
                 
-                const collection = msg.collection || def.collection || '';
-                const expand = msg.expand || def.expand || '';
+                const collection = def.collection || msg.collection || '';
+                const expand = def.expand || msg.expand || '';
 
-                if (!collection) throw requiredError('Collection');
-                if (!data) throw requiredError('Record data');
+                if (!isString(collection)) throw propError('Collection');
+                if (!isObject(data)) throw propError('Record data');
 
                 this.debug(`PB Create: ${collection} expand='${expand}'`);
 
