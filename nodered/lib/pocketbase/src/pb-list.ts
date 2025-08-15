@@ -20,15 +20,15 @@ module.exports = (RED: NodeAPI) => {
                 const pb = await pbAutoAuth(this, msg);
 
                 const collection = def.collection || msg.collection;
-                const page = def.page || msg.page || 1;
-                const perPage = def.perPage || msg.perPage || 50;
+                const page = Number(def.page || msg.page || 1);
+                const perPage = Number(def.perPage || msg.perPage || 50);
                 const filter = def.filter || msg.filter || '';
                 const sort = def.sort || msg.sort || '';
                 const mode = def.mode || msg.mode || 'page';
 
                 if (!isString(collection)) throw propError('Collection');
-                if (!isNumber(page)) throw propError('Page');
-                if (!isNumber(perPage)) throw propError('Per Page');
+                if (!isNumber(page) || page < 1) throw propError('Page');
+                if (!isNumber(perPage) || perPage < 1 || perPage > 99999) throw propError('Per Page');
                 if (!isString(filter)) throw propError('Filter');
                 if (!isString(sort)) throw propError('Sort');
                 if (!isString(mode)) throw propError('Mode');
