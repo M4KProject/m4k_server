@@ -5,8 +5,7 @@
         defaults: {
             name: { value: "" },
             collection: { value: "" },
-            recordId: { value: "" },
-            confirm: { value: false }
+            recordId: { value: "" }
         },
         inputs: 1,
         outputs: 1,
@@ -31,12 +30,6 @@
         <label for="node-input-recordId"><i class="icon-file"></i> Record ID</label>
         <input type="text" id="node-input-recordId" placeholder="Record ID or leave empty for msg.id">
     </div>
-    <div class="form-row">
-        <label for="node-input-confirm" style="width: auto;">
-            <input type="checkbox" id="node-input-confirm" style="width: auto; margin-right: 10px;">
-            Require confirmation before delete
-        </label>
-    </div>
 </script>
 
 <script type="text/html" data-help-name="pb-delete">
@@ -46,7 +39,6 @@
     <ul>
         <li><strong>Collection:</strong> PocketBase collection name (can be overridden by msg.collection)</li>
         <li><strong>Record ID:</strong> Default record ID (can be overridden by msg.id)</li>
-        <li><strong>Require confirmation:</strong> If checked, requires msg.confirmed = true to proceed</li>
     </ul>
 
     <h3>Input Properties</h3>
@@ -55,10 +47,6 @@
         <dd>Collection name (overrides node config)</dd>
         <dt>id <span class="property-type">string</span></dt>
         <dd>Record ID to delete (required if not in config)</dd>
-        <dt>confirm <span class="property-type">boolean</span></dt>
-        <dd>Require confirmation (overrides node config)</dd>
-        <dt>confirmed <span class="property-type">boolean</span></dt>
-        <dd>Set to true to confirm deletion when confirmation is required</dd>
     </dl>
 
     <h3>Outputs</h3>
@@ -69,13 +57,8 @@
         <dd>Authenticated PocketBase client for chaining</dd>
     </dl>
 
-    <h3>Confirmation Mode</h3>
-    <p>When confirmation is enabled, the first call will output a confirmation request.
-    To proceed, call again with <code>msg.confirmed = true</code>.</p>
-    
     <h3>Examples</h3>
     <p><strong>Simple delete:</strong> <code>msg.id = "record123"</code></p>
-    <p><strong>With confirmation:</strong> First call outputs confirmation, second call with <code>msg.confirmed = true</code> deletes</p>
     
     <p><strong>⚠️ Warning:</strong> Delete operations are permanent and cannot be undone!</p>
 </script>

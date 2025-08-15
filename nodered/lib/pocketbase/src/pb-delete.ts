@@ -17,7 +17,7 @@ module.exports = (RED: NodeAPI) => {
                 const pb = await pbAutoAuth(this, msg);
                 
                 const p = msg.payload || {};
-                const collection = def.collection || msg.collection;
+                const collection = def.collection || msg.collection || p.collectionName;
                 const id = def.recordId || msg.recordId || p.id;
 
                 if (!isString(collection)) throw propError('Collection');
