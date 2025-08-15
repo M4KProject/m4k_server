@@ -42,7 +42,7 @@ export const pbAuthInfo = (node: Node, msgAuth: Partial<PBAuth> = {}): PBAuth =>
     }
 
     const env = process.env;
-    const url = msgAuth.url || env.PB_API_URL || '';
+    const url = msgAuth.url || env.PB_URL || '';
     const authCollection = msgAuth.authCollection || env.PB_AUTH_COLLECTION || '_superusers';
     const username = msgAuth.username || env.PB_USERNAME || 'admin';
     const password = msgAuth.password || env.PB_PASSWORD || '';
