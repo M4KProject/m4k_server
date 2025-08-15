@@ -1,5 +1,5 @@
 import { Node } from 'node-red';
-import PocketBase from 'pocketbase';
+import PocketBase, { ClientResponseError } from 'pocketbase';
 
 export interface PBAuth {
     apiUrl: string;
@@ -90,7 +90,17 @@ export const pbAuth = async (node: Node, auth: PBAuth): Promise<{ pb: PocketBase
             if (!isString(token)) throw new Error('no token ???');
             node.debug(`PB connected`);
         } catch (error) {
-            node.error(`PB connection failed ${apiUrl} ${authCollection} ${username} : ${error}`);
+            const infoMsg = JSON.stringify({
+                apiUrl,
+                authCollection,
+                username,
+                passwordLength: password.length,
+            }, null, 2);
+            let errorMsg = String(error);
+            if (error instanceof ClientResponseError) {
+                errorMsg = JSON.stringify(error.toJSON(), null, 2);
+            }
+            node.error(`PB Auth failed ${infoMsg} : ${errorMsg}`);
             throw error;
         }
     }
