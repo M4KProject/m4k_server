@@ -37,3 +37,5 @@ pocketbase/go/pocketbase
 nodered/data
 
 firebase
+
+node_modules

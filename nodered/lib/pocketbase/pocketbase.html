@@ -1,0 +1,54 @@
+<script type="text/javascript">
+    RED.nodes.registerType('pocketbase', {
+        category: 'pocketbase',
+        color: '#a6bbcf',
+        defaults: {
+            name: { value: "" },
+            apiUrl: { value: "", required: true },
+            username: { value: "", required: true },
+            password: { value: "", required: true }
+        },
+        inputs: 1,
+        outputs: 2,
+        icon: "db.png",
+        label: function() {
+            return this.name || "PocketBase";
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="pocketbase">
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-apiUrl"><i class="icon-globe"></i> API URL</label>
+        <input type="text" id="node-input-apiUrl" placeholder="PB_API_URL">
+    </div>
+    <div class="form-row">
+        <label for="node-input-username"><i class="icon-user"></i> Username</label>
+        <input type="text" id="node-input-username" placeholder="PB_ADMIN_USERNAME">
+    </div>
+    <div class="form-row">
+        <label for="node-input-password"><i class="icon-lock"></i> Password</label>
+        <input type="password" id="node-input-password" placeholder="PB_ADMIN_PASSWORD">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="pocketbase">
+    <p>Authenticates with PocketBase and returns the authenticated client.</p>
+    
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>Authentication response with token and user data</dd>
+        <dt>pb <span class="property-type">PocketBase</span></dt>
+        <dd>Authenticated PocketBase client instance</dd>
+    </dl>
+
+    <h3>Details</h3>
+    <p>This node uses the PocketBase SDK to authenticate as a superuser and provides
+    the authenticated client for further operations. On success, outputs to port 1.
+    On error, outputs to port 2.</p>
+</script>
