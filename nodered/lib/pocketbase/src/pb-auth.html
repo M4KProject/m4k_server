@@ -12,6 +12,7 @@
         inputs: 1,
         outputs: 1,
         icon: "lock.png",
+        paletteLabel: 'auth',
         label: function() {
             return this.name || "PB Auth";
         }
@@ -29,7 +30,7 @@
     </div>
     <div class="form-row">
         <label for="node-input-authCollection"><i class="icon-table"></i> Auth Collection</label>
-        <input type="text" id="node-input-authCollection" placeholder="_superusers">
+        <input type="text" id="node-input-authCollection" placeholder="Leave empty to use PB_AUTH_COLLECTION env var">
     </div>
     <div class="form-row">
         <label for="node-input-username"><i class="icon-user"></i> Username</label>
