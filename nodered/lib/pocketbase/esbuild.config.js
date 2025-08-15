@@ -1,12 +1,12 @@
 const { build } = require('esbuild');
 
 const config = {
-  entryPoints: ['src/pocketbase.ts'],
+  entryPoints: ['src/pb-auth.ts', 'src/pb-crud.ts'],
   bundle: true,
   platform: 'node',
   target: 'node16',
   format: 'cjs',
-  outfile: 'dist/pocketbase.js',
+  outdir: 'dist',
   external: ['pocketbase', 'node-red'],
   sourcemap: true,
   minify: false

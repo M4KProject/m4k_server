@@ -13,7 +13,7 @@
     "typescript": "^5.0.0"
   },
   "scripts": {
-    "build": "node esbuild.config.js",
+    "build": "node esbuild.config.js && cp *.html dist/",
     "dev": "npm-run-all --parallel lint:watch build:watch",
     "lint": "tsc --noEmit",
     "lint:watch": "tsc --noEmit --watch",
@@ -22,7 +22,8 @@
   },
   "node-red": {
     "nodes": {
-      "pocketbase": "dist/pocketbase.js"
+      "pb-auth": "dist/pb-auth.js",
+      "pb-crud": "dist/pb-crud.js"
     }
   },
   "devDependencies": {
