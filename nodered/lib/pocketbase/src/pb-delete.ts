@@ -5,7 +5,6 @@ export interface PBDeleteNodeDef extends NodeDef {
     name: string;
     collection: string;
     recordId: string;
-    confirm: boolean;
 }
 
 module.exports = (RED: NodeAPI) => {

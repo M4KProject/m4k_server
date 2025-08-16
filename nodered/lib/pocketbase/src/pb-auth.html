@@ -7,7 +7,9 @@
             url: { value: "" },
             authCollection: { value: "_superusers" },
             username: { value: "" },
-            password: { value: "" }
+            password: { value: "" },
+            tokenRefreshSeconds: { value: 3600, validate: RED.validators.number() },
+            autoRefreshOnError: { value: false }
         },
         inputs: 1,
         outputs: 1,
@@ -40,6 +42,18 @@
         <label for="node-input-password"><i class="icon-lock"></i> Password</label>
         <input type="password" id="node-input-password" placeholder="Leave empty to use PB_PASSWORD env var">
     </div>
+    <div class="form-row">
+        <label for="node-input-tokenRefreshSeconds"><i class="icon-clock"></i> Token Refresh (seconds)</label>
+        <input type="number" id="node-input-tokenRefreshSeconds" placeholder="3600" min="0">
+        <div class="form-tips">Auto-refresh token after this many seconds (0 = disabled, default: 3600 = 1 hour)</div>
+    </div>
+    <div class="form-row">
+        <label for="node-input-autoRefreshOnError" style="width: auto;">
+            <input type="checkbox" id="node-input-autoRefreshOnError" style="width: auto; margin-right: 10px;">
+            Auto re-authenticate on token error
+        </label>
+        <div class="form-tips">If checked, automatically re-authenticate when token refresh fails</div>
+    </div>
 </script>
 
 <script type="text/html" data-help-name="pb-auth">
@@ -52,6 +66,8 @@
         <li><strong>Auth Collection:</strong> Collection for authentication (env: PB_AUTH_COLLECTION, default: _superusers)</li>
         <li><strong>Username:</strong> Authentication username (env: PB_USERNAME)</li>
         <li><strong>Password:</strong> Authentication password (env: PB_PASSWORD)</li>
+        <li><strong>Token Refresh:</strong> Seconds before auto-refreshing token (0 = disabled, default: 3600)</li>
+        <li><strong>Auto Re-auth:</strong> Re-authenticate automatically if token refresh fails</li>
     </ul>
 
     <h3>Outputs</h3>
@@ -64,6 +80,14 @@
         <dd>Authenticated PocketBase client instance</dd>
     </dl>
 
+    <h3>Token Management</h3>
+    <p>The node supports automatic token refresh to maintain long-running connections:</p>
+    <ul>
+        <li><strong>Auto Refresh:</strong> Token is automatically refreshed after the specified interval</li>
+        <li><strong>Error Handling:</strong> When auto re-auth is enabled, failed refreshes trigger full re-authentication</li>
+        <li><strong>Performance:</strong> Reduces authentication overhead for frequent API calls</li>
+    </ul>
+    
     <h3>Details</h3>
     <p>This node authenticates with PocketBase and stores the credentials in the flow context. 
     Other PB nodes (pb-crud, pb-realtime) will automatically reuse this authentication.</p>

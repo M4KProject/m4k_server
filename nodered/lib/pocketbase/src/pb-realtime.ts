@@ -1,5 +1,5 @@
 import { NodeAPI, Node, NodeDef } from 'node-red';
-import { pbAuth, pbAuthInfo, propError } from './common';
+import { pbAuth, pbAuthInfo, pbAutoAuth, propError } from './common';
 
 export interface PBRealtimeNodeDef extends NodeDef {
     name: string;
@@ -15,7 +15,7 @@ module.exports = (RED: NodeAPI) => {
         
         this.on('input', async (msg: any) => {
             try {
-                const pb = msg.pb || (await pbAuth(this, pbAuthInfo(this, msg.pbAuth))).pb;
+                const pb = await pbAutoAuth(this, msg);
                 
                 const collection = def.collection || msg.collection;
                 const action = def.action || msg.action || 'subscribe';

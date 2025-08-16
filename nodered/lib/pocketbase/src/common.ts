@@ -7,12 +7,16 @@ export interface PBAuth {
     username: string;
     password: string;
     token: string;
+    tokenRefreshSeconds: number;
+    autoRefreshOnError: boolean;
+    lastRefresh?: number;
 }
 
 export const isArray = (v: any): v is any[] => Array.isArray(v);
 export const isObject = <T extends {}>(v: unknown): v is T => typeof v === "object" && v !== null;
 export const isString = (v: any): v is string => typeof v === 'string';
 export const isNumber = (v: any): v is number => typeof v === 'number';
+export const isBool = (v: any): v is boolean => v === true || v === false;
 
 export const isPBAuth = (v: any): v is PBAuth => (
     isObject<PBAuth>(v) &&
@@ -20,7 +24,9 @@ export const isPBAuth = (v: any): v is PBAuth => (
     isString(v.url) &&
     isString(v.authCollection) &&
     isString(v.username) &&
-    isString(v.password)
+    isString(v.password) &&
+    isNumber(v.tokenRefreshSeconds) &&
+    isBool(v.autoRefreshOnError)
 );
 
 export const isPBAuthEquals = (a: PBAuth, b: PBAuth): boolean => (
@@ -28,7 +34,9 @@ export const isPBAuthEquals = (a: PBAuth, b: PBAuth): boolean => (
     a.url === b.url &&
     a.authCollection === b.authCollection &&
     a.username === b.username &&
-    a.password === b.password
+    a.password === b.password &&
+    a.tokenRefreshSeconds === b.tokenRefreshSeconds &&
+    a.autoRefreshOnError === b.autoRefreshOnError
 );
 
 export const pbAuthInfo = (node: Node, msgAuth: Partial<PBAuth> = {}): PBAuth => {
@@ -48,8 +56,10 @@ export const pbAuthInfo = (node: Node, msgAuth: Partial<PBAuth> = {}): PBAuth =>
     const username = msgAuth.username || env.PB_USERNAME || 'admin';
     const password = msgAuth.password || env.PB_PASSWORD || '';
     const token = '';
+    const tokenRefreshSeconds = msgAuth.tokenRefreshSeconds ?? 3600; // 1h par défaut
+    const autoRefreshOnError = msgAuth.autoRefreshOnError ?? false;
 
-    const newAuth: PBAuth = { url, authCollection, username, password, token };
+    const newAuth: PBAuth = { url, authCollection, username, password, token, tokenRefreshSeconds, autoRefreshOnError };
     ctx.flow.set('pbAuth', newAuth);
 
     return newAuth;
@@ -61,8 +71,8 @@ export const propError = (name: string) => {
 }
 
 export const pbAuth = async (node: Node, auth: PBAuth): Promise<{ pb: PocketBase, auth: PBAuth }> => {
-    const { url, authCollection, username, password } = auth;
-    let { token } = auth;
+    const { url, authCollection, username, password, tokenRefreshSeconds, autoRefreshOnError } = auth;
+    let { token, lastRefresh } = auth;
 
     if (!isString(url)) throw propError('PB Url');
     if (!isString(authCollection)) throw propError('PB Auth Collection');
@@ -71,15 +81,26 @@ export const pbAuth = async (node: Node, auth: PBAuth): Promise<{ pb: PocketBase
 
     const ctx = node.context();
     const pb = new PocketBase(url);
+    const now = Date.now();
 
     if (token) {
         pb.authStore.save(token);
-        try {
-            const authData = await pb.collection(authCollection).authRefresh();
-            token = authData.token;
-        } catch (error) {
-            node.debug(`PB token expired or invalid ${error}`);
-            token = '';
+        
+        // Vérifier si un refresh est nécessaire
+        const shouldRefresh = tokenRefreshSeconds > 0 && 
+            lastRefresh && 
+            (now - lastRefresh) > (tokenRefreshSeconds * 1000);
+            
+        if (shouldRefresh) {
+            try {
+                const authData = await pb.collection(authCollection).authRefresh();
+                token = authData.token;
+                lastRefresh = now;
+                node.debug(`PB token refreshed`);
+            } catch (error) {
+                node.debug(`PB token expired or invalid ${error}`);
+                token = '';
+            }
         }
     }
 
@@ -88,6 +109,7 @@ export const pbAuth = async (node: Node, auth: PBAuth): Promise<{ pb: PocketBase
         try {
             const authData = await pb.collection(authCollection).authWithPassword(username, password);
             token = authData.token;
+            lastRefresh = now;
             if (!isString(token)) throw new Error('no token ???');
             node.debug(`PB connected`);
         } catch (error) {
@@ -109,7 +131,7 @@ export const pbAuth = async (node: Node, auth: PBAuth): Promise<{ pb: PocketBase
         }
     }
 
-    const newAuth = { ...auth, token };
+    const newAuth = { ...auth, token, lastRefresh };
     ctx.flow.set('pbAuth', newAuth);
 
     return { pb, auth: newAuth };
