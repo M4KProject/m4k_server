@@ -1,5 +1,5 @@
 import { NodeAPI, Node, NodeDef } from 'node-red';
-import { isString, pbAutoAuth, propError } from './common';
+import { isString, pbWithRetry, propError } from './common';
 
 export interface PBGetNodeDef extends NodeDef {
     name: string;
@@ -14,8 +14,6 @@ module.exports = (RED: NodeAPI) => {
 
         this.on('input', async (msg: any) => {
             try {
-                const pb = await pbAutoAuth(this, msg);
-
                 const p = msg.payload || {};
                 const collection = def.collection || msg.collection || p.collectionName;
                 const id = def.recordId || msg.recordId || p.id;
@@ -27,10 +25,11 @@ module.exports = (RED: NodeAPI) => {
 
                 this.debug(`PB Get: ${collection}/${id} expand='${expand}'`);
 
-                const result = await pb.collection(collection).getOne(id, { expand });
+                const result = await pbWithRetry(this, msg, async (pb) => {
+                    return await pb.collection(collection).getOne(id, { expand });
+                });
 
                 msg.payload = result;
-                msg.pb = pb;
                 this.send(msg);
 
             } catch (error) {

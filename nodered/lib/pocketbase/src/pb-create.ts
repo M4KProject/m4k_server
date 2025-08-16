@@ -1,5 +1,5 @@
 import { NodeAPI, Node, NodeDef } from 'node-red';
-import { isObject, isString, pbAutoAuth, propError } from './common';
+import { isObject, isString, pbWithRetry, propError } from './common';
 
 export interface PBCreateNodeDef extends NodeDef {
     name: string;
@@ -14,7 +14,6 @@ module.exports = (RED: NodeAPI) => {
 
         this.on('input', async (msg: any) => {
             try {
-                const pb = await pbAutoAuth(this, msg);
                 
                 let data = msg.payload;
                 if (def.json && def.json.trim()) {
@@ -33,10 +32,11 @@ module.exports = (RED: NodeAPI) => {
 
                 this.debug(`PB Create: ${collection} expand='${expand}'`);
 
-                const result = await pb.collection(collection).create(data, { expand });
+                const result = await pbWithRetry(this, msg, async (pb) => {
+                    return await pb.collection(collection).create(data, { expand });
+                });
 
                 msg.payload = result;
-                msg.pb = pb;
                 this.send(msg);
 
             } catch (error) {

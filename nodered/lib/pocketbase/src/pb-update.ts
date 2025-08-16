@@ -1,5 +1,5 @@
 import { NodeAPI, Node, NodeDef } from 'node-red';
-import { isObject, isString, pbAutoAuth, propError } from './common';
+import { isObject, isString, pbWithRetry, propError } from './common';
 
 export interface PBUpdateNodeDef extends NodeDef {
     name: string;
@@ -15,8 +15,6 @@ module.exports = (RED: NodeAPI) => {
 
         this.on('input', async (msg: any) => {
             try {
-                const pb = await pbAutoAuth(this, msg);
-                
                 const collection = def.collection || msg.collection;
                 const id = def.recordId || msg.recordId;
                 const expand = def.expand || msg.expand || '';
@@ -37,10 +35,11 @@ module.exports = (RED: NodeAPI) => {
 
                 this.debug(`PB Update: ${collection}/${id} expand='${expand}'`);
 
-                const result = await pb.collection(collection).update(id, data, { expand });
+                const result = await pbWithRetry(this, msg, async (pb) => {
+                    return await pb.collection(collection).update(id, data, { expand });
+                });
 
                 msg.payload = result;
-                msg.pb = pb;
                 this.send(msg);
 
             } catch (error) {

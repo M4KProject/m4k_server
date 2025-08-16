@@ -98,8 +98,13 @@ export const pbAuth = async (node: Node, auth: PBAuth): Promise<{ pb: PocketBase
                 lastRefresh = now;
                 node.debug(`PB token refreshed`);
             } catch (error) {
-                node.debug(`PB token expired or invalid ${error}`);
-                token = '';
+                node.debug(`PB token refresh failed: ${error}`);
+                if (autoRefreshOnError) {
+                    node.debug(`Auto refresh enabled, will re-authenticate`);
+                    token = '';
+                } else {
+                    throw error;
+                }
             }
         }
     }
@@ -135,6 +140,39 @@ export const pbAuth = async (node: Node, auth: PBAuth): Promise<{ pb: PocketBase
     ctx.flow.set('pbAuth', newAuth);
 
     return { pb, auth: newAuth };
+}
+
+/** Check if error is authentication-related */
+export const isAuthError = (error: any): boolean => {
+    if (error instanceof ClientResponseError) {
+        return error.status === 401 || error.status === 403;
+    }
+    return false;
+}
+
+/** Execute PocketBase operation with automatic re-auth on token error */
+export const pbWithRetry = async <T>(
+    node: Node, 
+    msg: any, 
+    operation: (pb: PocketBase) => Promise<T>
+): Promise<T> => {
+    let pb = await pbAutoAuth(node, msg);
+    
+    try {
+        return await operation(pb);
+    } catch (error) {
+        if (isAuthError(error)) {
+            node.debug(`Auth error detected, retrying with fresh auth: ${error}`);
+            // Force new authentication by clearing cached pb
+            delete msg.pb;
+            msg.pbAuth = { ...msg.pbAuth, token: '' };
+            pb = await pbAutoAuth(node, msg);
+            return await operation(pb);
+        } else {
+            node.error(`PB ${error} : \n${JSON.stringify(error)}`)
+        }
+        throw error;
+    }
 }
 
 /** Get authenticated PocketBase client from msg or auto-authenticate */

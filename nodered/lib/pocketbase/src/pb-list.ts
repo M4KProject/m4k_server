@@ -1,5 +1,5 @@
 import { NodeAPI, Node, NodeDef } from 'node-red';
-import { isNumber, isString, pbAutoAuth, propError } from './common';
+import { isNumber, isString, pbWithRetry, propError } from './common';
 
 export interface PBListNodeDef extends NodeDef {
     name: string;
@@ -18,7 +18,6 @@ module.exports = (RED: NodeAPI) => {
 
         this.on('input', async (msg: any) => {
             try {
-                const pb = await pbAutoAuth(this, msg);
 
                 const collection = def.collection || msg.collection;
                 const page = Number(def.page || msg.page || 1);
@@ -39,21 +38,23 @@ module.exports = (RED: NodeAPI) => {
 
                 this.debug(`PB List: ${collection} page=${page} perPage=${perPage} filter='${filter}' sort='${sort}' mode=${mode}`);
 
-                msg.pb = pb;
-                
                 if (mode === 'first') {
-                    const result = await pb.collection(collection).getList(1, 1, {
-                        filter,
-                        sort,
-                        expand
+                    const result = await pbWithRetry(this, msg, async (pb) => {
+                        return await pb.collection(collection).getList(1, 1, {
+                            filter,
+                            sort,
+                            expand
+                        });
                     });
                     msg.payload = result.items[0] || null;
                     this.send(msg);
                 } else {
-                    const result = await pb.collection(collection).getList(page, perPage, {
-                        filter,
-                        sort,
-                        expand
+                    const result = await pbWithRetry(this, msg, async (pb) => {
+                        return await pb.collection(collection).getList(page, perPage, {
+                            filter,
+                            sort,
+                            expand
+                        });
                     });
                     
                     if (mode === 'page') {
